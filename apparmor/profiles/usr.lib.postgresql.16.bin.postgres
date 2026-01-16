@@ -1,0 +1,92 @@
+# AppArmor Profile for PostgreSQL 16 on Ubuntu 24.04
+# Part of: ubuntu-server-security
+# CIS Controls: 1.6.1.3, 1.6.1.4
+
+#include <tunables/global>
+
+profile postgresql /usr/lib/postgresql/16/bin/postgres flags=(attach_disconnected) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+  #include <abstractions/ssl_certs>
+
+  # Capabilities required for PostgreSQL operation
+  capability chown,
+  capability dac_override,
+  capability dac_read_search,
+  capability fowner,
+  capability fsetid,
+  capability kill,
+  capability setgid,
+  capability setuid,
+  capability sys_resource,
+
+  # PostgreSQL Binaries (read + execute)
+  /usr/lib/postgresql/16/bin/* rix,
+  /usr/lib/postgresql/16/lib/** mr,
+  /usr/share/postgresql/16/** r,
+  /usr/share/postgresql-common/** r,
+
+  # Configuration files (read only)
+  /etc/postgresql/16/main/ r,
+  /etc/postgresql/16/main/** r,
+  /etc/ssl/certs/** r,
+  /etc/ssl/private/** r,
+
+  # Data directory (full access)
+  /var/lib/postgresql/ r,
+  /var/lib/postgresql/16/ r,
+  /var/lib/postgresql/16/main/ r,
+  /var/lib/postgresql/16/main/** rwk,
+
+  # Log files
+  /var/log/postgresql/ r,
+  /var/log/postgresql/** rw,
+
+  # Run directory (PID, socket)
+  /var/run/postgresql/ r,
+  /var/run/postgresql/** rwk,
+  /run/postgresql/ r,
+  /run/postgresql/** rwk,
+
+  # Temp files
+  /tmp/ r,
+  /tmp/** rwk,
+  /var/tmp/ r,
+  /var/tmp/** rwk,
+
+  # System libraries
+  /lib/x86_64-linux-gnu/** mr,
+  /usr/lib/x86_64-linux-gnu/** mr,
+
+  # Proc filesystem (needed for stats)
+  @{PROC}/@{pid}/stat r,
+  @{PROC}/@{pid}/statm r,
+  @{PROC}/@{pid}/status r,
+  @{PROC}/sys/kernel/random/uuid r,
+  @{PROC}/sys/kernel/osrelease r,
+  @{PROC}/meminfo r,
+  @{PROC}/cpuinfo r,
+
+  # Sys filesystem
+  /sys/devices/system/cpu/** r,
+  /sys/kernel/mm/transparent_hugepage/enabled r,
+
+  # Locale and timezone
+  /usr/share/locale/** r,
+  /usr/share/zoneinfo/** r,
+  /etc/timezone r,
+  /etc/localtime r,
+
+  # Network (listening on port 5432)
+  network inet stream,
+  network inet6 stream,
+  network unix stream,
+
+  # Deny dangerous operations
+  deny /bin/** x,
+  deny /sbin/** x,
+  deny /usr/bin/** x,
+  deny /usr/sbin/** x,
+  deny /home/** rwx,
+  deny /root/** rwx,
+}

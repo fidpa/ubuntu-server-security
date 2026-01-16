@@ -1,0 +1,30 @@
+[Unit]
+Description=USB Device Watcher
+Documentation=https://github.com/fidpa/ubuntu-server-security
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/usb-device-watcher.sh
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+# Security Hardening
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+ReadWritePaths=/var/lib/usb-defense
+
+# Environment (optional - customize as needed)
+#Environment="USB_DEFENSE_ALERT_EMAIL=root"
+#Environment="USB_DEFENSE_POLL_INTERVAL=2"
+#Environment="USB_DEFENSE_COOLDOWN=3600"
+
+[Install]
+WantedBy=multi-user.target

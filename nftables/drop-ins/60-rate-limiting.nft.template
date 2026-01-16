@@ -1,0 +1,110 @@
+#!/usr/sbin/nft -f
+# ═══════════════════════════════════════════════════════════════════════════
+# nftables Rate-Limiting Configuration Template
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Purpose: DoS protection and rate-limiting for public-facing services
+# Device Role: Add-on for gateway, server, or minimal templates
+# Deployment: Add to existing nftables config
+#
+# Features:
+# - WAN HTTP/HTTPS rate-limiting (100/min)
+# - SSH brute-force protection (5/min)
+# - Service-specific rate limits
+# - Whitelist support (bypass rate limits)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CUSTOMIZE THESE VARIABLES FOR YOUR SYSTEM
+# ═══════════════════════════════════════════════════════════════════════════
+
+# WAN Interface
+define WAN_INTERFACE = "eth0"
+
+# Whitelist IPs (bypass rate limits)
+define WHITELIST = { 192.168.1.100, 10.0.0.0/24 }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Rate-Limiting Rules - Add to existing nftables config
+# ═══════════════════════════════════════════════════════════════════════════
+
+table inet filter {
+    chain input {
+        # ... existing baseline rules ...
+
+        # ═══════════════════════════════════════════════════════════════════
+        # SSH Rate-Limiting (5 connections/minute)
+        # ═══════════════════════════════════════════════════════════════════
+
+        # Whitelist bypasses rate limit
+        ip saddr @WHITELIST tcp dport 22 accept comment "SSH whitelist"
+
+        # Rate-limit SSH (5/min)
+        tcp dport 22 ct state new limit rate over 5/minute counter log prefix "nft[ssh-ratelimit]: " reject
+        tcp dport 22 accept comment "SSH rate-limited"
+
+        # ═══════════════════════════════════════════════════════════════════
+        # WAN HTTP/HTTPS Rate-Limiting (100/minute)
+        # ═══════════════════════════════════════════════════════════════════
+
+        # Rate-limit WAN HTTP/HTTPS
+        iifname $WAN_INTERFACE tcp dport { 80, 443 } ct state new limit rate over 100/minute counter log prefix "nft[http-ratelimit]: " reject
+        iifname $WAN_INTERFACE tcp dport { 80, 443 } accept comment "WAN HTTP/HTTPS rate-limited"
+
+        # ═══════════════════════════════════════════════════════════════════
+        # Service-Specific Rate-Limiting
+        # ═══════════════════════════════════════════════════════════════════
+
+        # VNC (5 connections/minute)
+        # tcp dport 5900 ct state new limit rate over 5/minute counter reject
+        # tcp dport 5900 accept comment "VNC rate-limited"
+
+        # Database (PostgreSQL 10/min)
+        # tcp dport 5432 ct state new limit rate over 10/minute counter reject
+        # tcp dport 5432 accept comment "PostgreSQL rate-limited"
+
+        # Custom service (50/min)
+        # tcp dport 8000 ct state new limit rate over 50/minute counter log prefix "nft[service-ratelimit]: " reject
+        # tcp dport 8000 accept comment "Custom service rate-limited"
+
+        # ... existing rules ...
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# End of Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Rate Limit Recommendations:
+# - SSH: 5-10/minute (prevent brute-force)
+# - HTTP/HTTPS WAN: 100-200/minute (prevent DoS)
+# - VNC: 5/minute (low connection rate)
+# - Database: 10-50/minute (depends on app)
+# - Custom services: Adjust based on usage
+#
+# Whitelist Usage:
+# - Add trusted IPs to WHITELIST variable
+# - Whitelist bypasses ALL rate limits
+# - Use for monitoring systems, trusted networks
+#
+# Logging:
+# - Prefix: nft[ssh-ratelimit], nft[http-ratelimit]
+# - View: sudo journalctl -k | grep nft
+# - Adjust rate: limit rate 5/minute -> 10/minute
+#
+# Testing:
+# - SSH: for i in {1..20}; do ssh user@server; done
+# - HTTP: for i in {1..200}; do curl http://server; done
+# - Expected: Connection refused after rate limit
+#
+# Troubleshooting:
+# - Check counters: sudo nft list chain inet filter input -a
+# - Check logs: sudo journalctl -k | grep ratelimit
+# - Adjust limits: Edit rate over X/minute
+#
+# Documentation: https://github.com/fidpa/ubuntu-server-security/nftables/
+# See also: docs/NFTABLES_RULES.md § Rate Limiting
+# ═══════════════════════════════════════════════════════════════════════════

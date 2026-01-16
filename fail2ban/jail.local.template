@@ -1,0 +1,28 @@
+# fail2ban Standard Jail Configuration
+# Copyright (c) 2025-2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# This file provides a basic SSH jail configuration.
+# For additional jails (nginx, VNC, GeoIP), see drop-ins/ directory.
+
+[DEFAULT]
+# Inherit settings from fail2ban.local
+
+[sshd]
+# Standard SSH Protection
+# Protects against brute-force password attacks
+enabled = true
+backend = systemd
+port = 22
+filter = sshd
+logpath = /var/log/auth.log
+
+# Moderate policy: 3 failed attempts in 10 minutes → 10 minute ban
+maxretry = 3
+findtime = 600
+bantime = 600
+
+# Optional: Email alerts on ban
+# Requires destemail configured in fail2ban.local
+#action = %(action_mwl)s

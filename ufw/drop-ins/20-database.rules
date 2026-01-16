@@ -1,0 +1,77 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# UFW Drop-in: Database Rules
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Purpose: Database access rules (PostgreSQL, MySQL, Redis)
+# Use Case: Database servers accessible from application servers
+#
+# Ports:
+#   5432/tcp - PostgreSQL
+#   3306/tcp - MySQL/MariaDB
+#   6379/tcp - Redis (optional)
+#   27017/tcp - MongoDB (optional)
+#
+# SECURITY WARNING:
+#   Databases should NEVER be publicly accessible!
+#   Always use network-restricted rules.
+#
+# Usage:
+#   1. Customize network ranges for your environment
+#   2. Uncomment only the databases you use
+#   3. Deploy with: ./scripts/deploy-ufw-rules.sh drop-ins/20-database.rules
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CUSTOMIZE: Network Ranges
+# ═══════════════════════════════════════════════════════════════════════════
+# Management Network: 10.0.0.0/24 (adjust to your setup)
+# Application Servers: Could be same or different network
+
+# ───────────────────────────────────────────────────────────────────────────
+# PostgreSQL (Port 5432)
+# ───────────────────────────────────────────────────────────────────────────
+
+# From Management Network only (recommended)
+sudo ufw allow from 10.0.0.0/24 to any port 5432 proto tcp comment 'PostgreSQL Management'
+
+# From specific application server (alternative)
+# sudo ufw allow from 10.0.0.10 to any port 5432 proto tcp comment 'PostgreSQL from App Server'
+
+# ───────────────────────────────────────────────────────────────────────────
+# MySQL/MariaDB (Port 3306)
+# ───────────────────────────────────────────────────────────────────────────
+
+# From Management Network only
+sudo ufw allow from 10.0.0.0/24 to any port 3306 proto tcp comment 'MySQL Management'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Redis (Port 6379) - Optional
+# ───────────────────────────────────────────────────────────────────────────
+# Uncomment if using Redis
+
+# SECURITY: Redis has NO authentication by default! Always restrict access.
+# sudo ufw allow from 10.0.0.0/24 to any port 6379 proto tcp comment 'Redis Management'
+
+# ───────────────────────────────────────────────────────────────────────────
+# MongoDB (Port 27017) - Optional
+# ───────────────────────────────────────────────────────────────────────────
+# Uncomment if using MongoDB
+
+# sudo ufw allow from 10.0.0.0/24 to any port 27017 proto tcp comment 'MongoDB Management'
+
+# ───────────────────────────────────────────────────────────────────────────
+# PostgreSQL Replication (Port 5432 or custom)
+# ───────────────────────────────────────────────────────────────────────────
+# For primary-standby replication
+
+# From standby server only
+# sudo ufw allow from 10.0.0.11 to any port 5432 proto tcp comment 'PostgreSQL Replication'
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NEVER DO THIS - Database publicly accessible
+# ═══════════════════════════════════════════════════════════════════════════
+# sudo ufw allow 5432/tcp  # DANGEROUS - Do not use!
+# sudo ufw allow 3306/tcp  # DANGEROUS - Do not use!

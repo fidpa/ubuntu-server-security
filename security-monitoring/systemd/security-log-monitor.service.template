@@ -1,0 +1,29 @@
+[Unit]
+Description=Security Log Monitor
+Documentation=https://github.com/fidpa/ubuntu-server-security
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/security-log-monitor.sh
+User=root
+
+# State directory (systemd creates /var/lib/security-monitoring automatically)
+StateDirectory=security-monitoring
+
+# Environment file (override thresholds and configuration)
+# Create /etc/default/security-log-monitor for custom settings
+EnvironmentFile=-/etc/default/security-log-monitor
+
+# Security Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/security-monitoring
+
+# Resource Limits
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,157 @@
+#!/usr/sbin/nft -f
+# ═══════════════════════════════════════════════════════════════════════════
+# nftables Docker Host Configuration Template
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Purpose: Docker container networking with firewall rules
+# Device Role: Docker host, container platform
+# Deployment: /etc/nftables.conf
+#
+# CRITICAL: Docker Chain Preservation
+# - Docker creates DOCKER/DOCKER-USER chains at runtime
+# - NEVER use "flush ruleset" (destroys Docker chains)
+# - ALWAYS flush specific tables only
+#
+# Security Principles (CIS Benchmark Level 1 + 2):
+# - Default deny policy (input + forward chains)
+# - Explicit container networking rules
+# - Docker chain preservation
+# - LAN access control
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CUSTOMIZE THESE VARIABLES FOR YOUR SYSTEM
+# ═══════════════════════════════════════════════════════════════════════════
+
+# WAN Interface (connects to Internet)
+# Examples: eth0, enp0s31f6, ens33
+define WAN_INTERFACE = "eth0"
+
+# LAN Interface (connects to local network)
+# Examples: eth3, enx5c857e3ff94d, br0
+define LAN_INTERFACE = "eth3"
+
+# Management Network Interface (optional)
+define MGMT_INTERFACE = "eth1"
+
+# Docker Networks (check with: docker network inspect <name> | grep Subnet)
+# Add all Docker bridge networks here
+define DOCKER_NETWORKS = { 172.17.0.0/16, 172.18.0.0/16, 172.25.0.0/24 }
+
+# Network Ranges
+define LAN_NETWORK = 192.168.100.0/24
+define MGMT_NETWORK = 10.0.0.0/24
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Flush Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+# ⚠️ CRITICAL: Do NOT use "flush ruleset" with Docker!
+# Instead, flush specific tables to preserve Docker's DOCKER chain.
+
+flush table inet filter
+flush table ip nat
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Main Firewall Table (inet = IPv4 + IPv6)
+# ═══════════════════════════════════════════════════════════════════════════
+
+table inet filter {
+    # ═══════════════════════════════════════════════════════════════════════
+    # INPUT Chain - Traffic to the host itself
+    # ═══════════════════════════════════════════════════════════════════════
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Baseline rules
+        iif lo accept
+        ct state established,related accept
+        ip protocol icmp accept
+        ip6 nexthdr icmpv6 accept
+
+        # SSH (Management + LAN)
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport 22 accept comment "SSH from LAN + Management"
+
+        # Web services (internal)
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport { 80, 443 } accept comment "HTTP/HTTPS"
+
+        # Docker container ports (examples - customize as needed)
+        # Example: Expose specific container port to LAN
+        # iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport 8080 accept comment "Container App"
+
+        # Drop + log
+        limit rate 5/minute counter log prefix "nft[input-drop]: " drop
+        counter drop
+    }
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # FORWARD Chain - Traffic through the host (Docker containers)
+    # ═══════════════════════════════════════════════════════════════════════
+    # CRITICAL: These rules run BEFORE Docker's DOCKER chain
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+
+        # Baseline
+        ct state established,related accept
+
+        # Docker containers → Internet
+        ip saddr $DOCKER_NETWORKS oifname $WAN_INTERFACE accept comment "Docker to Internet"
+
+        # LAN → Docker containers
+        iifname $LAN_INTERFACE ip daddr $DOCKER_NETWORKS accept comment "LAN to Docker"
+
+        # Docker inter-container communication
+        ip saddr $DOCKER_NETWORKS ip daddr $DOCKER_NETWORKS accept comment "Docker inter-container"
+
+        # Management → Docker containers
+        iifname $MGMT_INTERFACE ip daddr $DOCKER_NETWORKS accept comment "Management to Docker"
+
+        # Drop + log
+        limit rate 5/minute counter log prefix "nft[forward-drop]: " drop
+        counter drop
+    }
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # OUTPUT Chain - Traffic from the host
+    # ═══════════════════════════════════════════════════════════════════════
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NAT Table (for Docker masquerading)
+# ═══════════════════════════════════════════════════════════════════════════
+
+table ip nat {
+    chain postrouting {
+        type nat hook postrouting priority 100; policy accept;
+
+        # Docker containers → Internet NAT
+        oifname $WAN_INTERFACE ip saddr $DOCKER_NETWORKS masquerade comment "Docker NAT"
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# End of Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Next Steps:
+# 1. Customize variables (WAN_INTERFACE, LAN_INTERFACE, DOCKER_NETWORKS)
+# 2. Identify Docker networks: docker network inspect bridge | grep Subnet
+# 3. Validate: sudo nft -c -f /etc/nftables.conf
+# 4. Deploy: sudo nft -f /etc/nftables.conf
+# 5. Enable: sudo systemctl enable nftables.service
+# 6. Test: docker run --rm alpine ping -c 3 8.8.8.8 (should work)
+#
+# Troubleshooting:
+# - Check Docker chains: sudo nft list ruleset | grep DOCKER
+# - Verify NAT: sudo nft list table ip nat
+# - Container internet test: docker exec <container> ping 8.8.8.8
+# - Check logs: sudo journalctl -u nftables.service -u docker.service
+#
+# Documentation: https://github.com/fidpa/ubuntu-server-security/nftables/
+# See also: docs/DOCKER_NETWORKING.md
+# ═══════════════════════════════════════════════════════════════════════════

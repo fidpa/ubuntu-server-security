@@ -1,0 +1,94 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# UFW Drop-in: Monitoring Rules
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Purpose: Monitoring stack access (Prometheus, Grafana, Exporters)
+# Use Case: Centralized monitoring server or monitored targets
+#
+# Ports:
+#   9090/tcp  - Prometheus
+#   3000/tcp  - Grafana
+#   9100/tcp  - Node Exporter
+#   9093/tcp  - Alertmanager
+#   9091/tcp  - Pushgateway
+#   8080/tcp  - cAdvisor
+#
+# Usage:
+#   1. Customize network ranges
+#   2. Uncomment components you use
+#   3. Deploy with: ./scripts/deploy-ufw-rules.sh drop-ins/30-monitoring.rules
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CUSTOMIZE: Network Ranges
+# ═══════════════════════════════════════════════════════════════════════════
+# Management Network: 10.0.0.0/24 (monitoring access)
+# Prometheus Server: IP of Prometheus for scraping
+
+# ───────────────────────────────────────────────────────────────────────────
+# Prometheus (Port 9090)
+# ───────────────────────────────────────────────────────────────────────────
+
+# Access from Management Network (for UI access)
+sudo ufw allow from 10.0.0.0/24 to any port 9090 proto tcp comment 'Prometheus'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Grafana (Port 3000)
+# ───────────────────────────────────────────────────────────────────────────
+
+# From Management Network (recommended)
+sudo ufw allow from 10.0.0.0/24 to any port 3000 proto tcp comment 'Grafana Management'
+
+# From Client LAN (if users need dashboard access)
+# sudo ufw allow from 192.168.100.0/24 to any port 3000 proto tcp comment 'Grafana LAN'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Node Exporter (Port 9100)
+# ───────────────────────────────────────────────────────────────────────────
+# Run on every monitored host for system metrics
+
+# From Prometheus server only
+sudo ufw allow from 10.0.0.0/24 to any port 9100 proto tcp comment 'Node Exporter'
+
+# From specific Prometheus IP (more secure)
+# sudo ufw allow from 10.0.0.2 to any port 9100 proto tcp comment 'Node Exporter from Prometheus'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Alertmanager (Port 9093)
+# ───────────────────────────────────────────────────────────────────────────
+# Uncomment if running Alertmanager
+
+# sudo ufw allow from 10.0.0.0/24 to any port 9093 proto tcp comment 'Alertmanager'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Pushgateway (Port 9091)
+# ───────────────────────────────────────────────────────────────────────────
+# Uncomment if using Pushgateway for batch jobs
+
+# sudo ufw allow from 10.0.0.0/24 to any port 9091 proto tcp comment 'Pushgateway'
+
+# ───────────────────────────────────────────────────────────────────────────
+# cAdvisor (Port 8080)
+# ───────────────────────────────────────────────────────────────────────────
+# Docker container metrics
+
+# sudo ufw allow from 10.0.0.0/24 to any port 8080 proto tcp comment 'cAdvisor'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Additional Exporters
+# ───────────────────────────────────────────────────────────────────────────
+
+# PostgreSQL Exporter (9187)
+# sudo ufw allow from 10.0.0.0/24 to any port 9187 proto tcp comment 'PostgreSQL Exporter'
+
+# MySQL Exporter (9104)
+# sudo ufw allow from 10.0.0.0/24 to any port 9104 proto tcp comment 'MySQL Exporter'
+
+# Blackbox Exporter (9115)
+# sudo ufw allow from 10.0.0.0/24 to any port 9115 proto tcp comment 'Blackbox Exporter'
+
+# SNMP Exporter (9116)
+# sudo ufw allow from 10.0.0.0/24 to any port 9116 proto tcp comment 'SNMP Exporter'

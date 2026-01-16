@@ -1,0 +1,114 @@
+#!/usr/sbin/nft -f
+# ═══════════════════════════════════════════════════════════════════════════
+# nftables WireGuard VPN Configuration Template
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Purpose: WireGuard VPN server with full routing and DNS
+# Device Role: VPN server, road warrior setup, site-to-site VPN
+# Deployment: Combine with 10-gateway.nft.template
+#
+# Features:
+# - WireGuard handshake (UDP 51820)
+# - VPN → Internet routing
+# - VPN → LAN access
+# - VPN peer-to-peer communication
+# - Full DNS takeover support
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CUSTOMIZE THESE VARIABLES FOR YOUR SYSTEM
+# ═══════════════════════════════════════════════════════════════════════════
+
+# VPN Configuration
+define VPN_INTERFACE = "wg0"
+define VPN_NETWORK = 10.29.93.0/24
+define VPN_PORT = 51820
+
+# WAN Interface (for NAT)
+define WAN_INTERFACE = "eth0"
+
+# LAN Interface (for LAN access)
+define LAN_INTERFACE = "eth3"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# WireGuard Rules - Add to existing nftables config
+# ═══════════════════════════════════════════════════════════════════════════
+
+table inet filter {
+    chain input {
+        # ... existing rules ...
+
+        # WireGuard handshake (UDP)
+        udp dport $VPN_PORT accept comment "WireGuard VPN"
+
+        # SSH from VPN
+        iifname $VPN_INTERFACE tcp dport 22 accept comment "SSH from VPN"
+
+        # DNS from VPN (for Full DNS takeover)
+        iifname $VPN_INTERFACE udp dport 53 accept comment "DNS from VPN"
+        iifname $VPN_INTERFACE tcp dport 53 accept comment "DNS from VPN"
+
+        # Web services from VPN
+        iifname $VPN_INTERFACE tcp dport { 80, 443 } accept comment "HTTP/HTTPS from VPN"
+
+        # Add your services here (e.g., Samba, Nextcloud)
+        # iifname $VPN_INTERFACE tcp dport { 139, 445 } accept comment "Samba from VPN"
+    }
+
+    chain forward {
+        # ... existing rules ...
+
+        # VPN → Internet (allow VPN clients to access Internet)
+        iifname $VPN_INTERFACE oifname $WAN_INTERFACE accept comment "VPN to Internet"
+
+        # VPN → LAN (allow VPN clients to access LAN resources)
+        iifname $VPN_INTERFACE oifname $LAN_INTERFACE accept comment "VPN to LAN"
+
+        # VPN peer-to-peer (CRITICAL for client ↔ client communication)
+        iifname $VPN_INTERFACE oifname $VPN_INTERFACE accept comment "VPN peer-to-peer"
+    }
+}
+
+table ip nat {
+    chain postrouting {
+        # ... existing rules ...
+
+        # VPN → Internet NAT
+        oifname $WAN_INTERFACE ip saddr $VPN_NETWORK masquerade comment "VPN to Internet"
+
+        # VPN → LAN NAT (required for return traffic!)
+        oifname $LAN_INTERFACE ip saddr $VPN_NETWORK masquerade comment "VPN to LAN"
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# End of Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Next Steps:
+# 1. Install WireGuard: sudo apt install wireguard
+# 2. Generate keys: wg genkey | sudo tee /etc/wireguard/server_private.key
+# 3. Configure /etc/wireguard/wg0.conf (see docs/WIREGUARD_INTEGRATION.md)
+# 4. Start WireGuard: sudo systemctl enable wg-quick@wg0 && sudo systemctl start wg-quick@wg0
+# 5. Deploy nftables: sudo scripts/deploy-nftables.sh /etc/nftables.conf
+#
+# Verify:
+# - WireGuard status: sudo wg show wg0
+# - Connected peers: sudo wg show wg0 peers
+# - Test VPN internet: ping 8.8.8.8 (from VPN client)
+# - Test VPN LAN: ping 192.168.100.1 (from VPN client)
+#
+# Full DNS Takeover (Linux clients):
+# Add to client /etc/wireguard/wg0.conf:
+#   DNS = 10.29.93.1
+#   PostUp = resolvectl domain wg0 "~."
+#   PostUp = resolvectl dns wg0 10.29.93.1
+#   PostUp = resolvectl default-route wg0 true
+#   PostDown = resolvectl revert wg0
+#
+# Documentation: https://github.com/fidpa/ubuntu-server-security/nftables/
+# See also: docs/WIREGUARD_INTEGRATION.md
+# ═══════════════════════════════════════════════════════════════════════════

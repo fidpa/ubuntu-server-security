@@ -1,0 +1,27 @@
+# USB Defense System Configuration
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Usage: Export these variables before running scripts or services
+# systemd: Add Environment="VAR=value" to service files
+
+# Alert email recipient (default: root)
+USB_DEFENSE_ALERT_EMAIL="root"
+
+# State directory for tracking USB devices (default: /var/lib/usb-defense)
+USB_DEFENSE_STATE_DIR="/var/lib/usb-defense"
+
+# Polling interval in seconds (default: 2)
+# Lower = faster detection, higher CPU usage
+USB_DEFENSE_POLL_INTERVAL="2"
+
+# Warmup cycles before sending alerts (default: 5)
+# Prevents false positives during service startup
+USB_DEFENSE_WARMUP_CYCLES="5"
+
+# Alert cooldown in seconds (default: 3600 = 1 hour)
+# Prevents duplicate alerts for same device
+USB_DEFENSE_COOLDOWN="3600"
+
+# auditd log lookback period in minutes (default: 6)
+# Should overlap with check interval for 100% coverage
+USB_DEFENSE_LOOKBACK_MINUTES="6"

@@ -1,0 +1,86 @@
+# Security Log Monitor - Configuration Example
+#
+# Copy this file to /etc/default/security-log-monitor
+# and customize for your environment.
+#
+# Usage:
+#   sudo cp examples/security-log-monitor.conf.example /etc/default/security-log-monitor
+#   sudo nano /etc/default/security-log-monitor
+#   sudo systemctl restart security-log-monitor.timer
+
+# ============================================================================
+# TELEGRAM CONFIGURATION (REQUIRED)
+# ============================================================================
+
+# Telegram Bot Token (REQUIRED)
+# Get from @BotFather: https://t.me/botfather
+TELEGRAM_BOT_TOKEN="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
+
+# Telegram Chat ID (REQUIRED)
+# Get from: https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+# Look for "chat":{"id":-1234567890}
+TELEGRAM_CHAT_ID="-1001234567890"
+
+# ============================================================================
+# ALERTING CONFIGURATION (OPTIONAL)
+# ============================================================================
+
+# Message prefix (customize per server)
+# Examples:
+#   - TELEGRAM_PREFIX="[🔐 Production]"
+#   - TELEGRAM_PREFIX="[🌐 Web-01]"
+#   - TELEGRAM_PREFIX="[💾 Database]"
+TELEGRAM_PREFIX="[Security]"
+
+# Rate limit (seconds between alerts for same event type)
+# Default: 1800 (30 minutes)
+# Increase for less frequent alerts: RATE_LIMIT_SECONDS=3600
+# Decrease for more frequent alerts: RATE_LIMIT_SECONDS=600
+RATE_LIMIT_SECONDS=1800
+
+# Enable recovery alerts (notify when events stop)
+# Default: false
+# ENABLE_RECOVERY_ALERTS=true
+
+# ============================================================================
+# DETECTION THRESHOLDS (OPTIONAL)
+# ============================================================================
+
+# SSH failed login threshold
+# Alert if SSH failures exceed this count in check interval
+# Default: 5
+# Strict: SSH_FAILURE_THRESHOLD=3
+# Relaxed: SSH_FAILURE_THRESHOLD=15
+SSH_FAILURE_THRESHOLD=5
+
+# UFW block threshold
+# Alert if blocks from same IP exceed this count in check interval
+# Default: 10
+# High scan activity: UFW_BLOCK_THRESHOLD=100
+# Low traffic: UFW_BLOCK_THRESHOLD=5
+UFW_BLOCK_THRESHOLD=10
+
+# ============================================================================
+# PATHS (ADVANCED - ONLY CHANGE IF NEEDED)
+# ============================================================================
+
+# bash-production-toolkit installation path
+# Default: /usr/local/lib/bash-production-toolkit
+# BASH_TOOLKIT_PATH="/opt/bash-production-toolkit"
+
+# State directory for deduplication
+# Default: /var/lib/security-monitoring
+# STATE_DIR="/var/lib/security-monitoring"
+
+# Check interval (must match timer interval!)
+# Default: 15 minutes
+# CHECK_INTERVAL_MIN=15
+
+# ============================================================================
+# LOGGING (ADVANCED)
+# ============================================================================
+
+# Log level (from bash-production-toolkit)
+# Options: DEBUG, INFO, WARN, ERROR
+# Default: INFO
+# LOG_LEVEL=DEBUG

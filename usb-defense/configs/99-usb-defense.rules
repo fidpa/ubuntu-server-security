@@ -1,0 +1,22 @@
+# USB Defense System - auditd Rules
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Purpose: Detect USB bypass attempts via kernel audit framework
+# Monitors: Module loading, blacklist tampering, USB device access
+#
+# Documentation: https://github.com/fidpa/ubuntu-server-security/tree/main/usb-defense
+
+# Monitor USB device access
+-w /dev/bus/usb -p wa -k usb_device_activity
+-w /sys/bus/usb -p wa -k usb_device_activity
+
+# Monitor kernel module loading/unloading
+-a always,exit -F path=/sbin/modprobe -F key=usb_module_loading
+-a always,exit -F path=/sbin/rmmod -F key=usb_module_loading
+
+# Monitor blacklist file tampering
+-w /etc/modprobe.d/blacklist-usb-storage.conf -k usb_blacklist_tampering
+
+# Monitor modprobe/rmmod execution via syscall
+-a always,exit -S execve -F path=/sbin/modprobe -k usb_modprobe
+-a always,exit -S execve -F path=/sbin/rmmod -k usb_modprobe

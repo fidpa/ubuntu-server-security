@@ -1,0 +1,38 @@
+# fail2ban Base Configuration
+# Copyright (c) 2025-2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+
+[DEFAULT]
+# Ban duration (default: 10 minutes)
+# Adjust based on your security requirements
+bantime = 600
+
+# Time window for counting failed attempts (default: 10 minutes)
+findtime = 600
+
+# Maximum number of failed attempts before ban (default: 5)
+maxretry = 5
+
+# Log backend (systemd recommended for modern Linux systems)
+# Alternative: auto, polling, gamin, pyinotify
+backend = systemd
+
+# Management Network Whitelist
+# Prevents banning management/admin IPs (SSH, monitoring, etc.)
+# Example: 10.0.0.0/24 for management network
+# Add your trusted IPs here (space or comma separated)
+ignoreip = 127.0.0.1/8 ::1
+
+# Email notifications (optional)
+# Requires MTA configured (e.g., postfix, sendmail)
+#destemail = admin@example.com
+#sender = fail2ban@example.com
+#mta = sendmail
+
+# Action to take when ban occurs
+# Default: iptables-multiport (blocks IP on all ports)
+# For nftables: use nftables-multiport
+# For custom actions: see actions/ directory
+banaction = iptables-multiport
+banaction_allports = iptables-allports

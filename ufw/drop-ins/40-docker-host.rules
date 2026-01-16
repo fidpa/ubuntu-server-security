@@ -1,0 +1,103 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# UFW Drop-in: Docker Host Rules
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Purpose: Docker management ports (Portainer, Registry, etc.)
+# Use Case: Docker host requiring remote management access
+#
+# Ports:
+#   9000/tcp  - Portainer HTTP
+#   9443/tcp  - Portainer HTTPS
+#   8000/tcp  - Portainer Edge Agent Tunnel
+#   5000/tcp  - Docker Registry (optional)
+#   2375/tcp  - Docker API (DANGEROUS - avoid!)
+#   2376/tcp  - Docker API TLS (optional)
+#
+# IMPORTANT: Docker bypasses UFW!
+#   See docs/DOCKER_NETWORKING.md for workarounds.
+#   These rules are for NON-CONTAINERIZED services or services bound to host IP.
+#
+# Usage:
+#   1. Customize network ranges
+#   2. Deploy with: ./scripts/deploy-ufw-rules.sh drop-ins/40-docker-host.rules
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CUSTOMIZE: Network Ranges
+# ═══════════════════════════════════════════════════════════════════════════
+# Management Network: 10.0.0.0/24 (admin access only)
+# Client LAN: 192.168.100.0/24 (optional user access)
+
+# ───────────────────────────────────────────────────────────────────────────
+# Portainer (Ports 9000, 9443, 8000)
+# ───────────────────────────────────────────────────────────────────────────
+
+# Portainer HTTP (for initial setup or redirects)
+# Restrict to management network
+sudo ufw allow from 10.0.0.0/24 to any port 9000 proto tcp comment 'Portainer HTTP'
+
+# Portainer HTTPS (primary access)
+sudo ufw allow from 10.0.0.0/24 to any port 9443 proto tcp comment 'Portainer HTTPS'
+
+# Optional: Allow HTTPS from Client LAN
+# sudo ufw allow from 192.168.100.0/24 to any port 9443 proto tcp comment 'Portainer HTTPS LAN'
+
+# Portainer Edge Agent Tunnel (for remote agents)
+# Only if using Portainer Edge
+# sudo ufw allow from 10.0.0.0/24 to any port 8000 proto tcp comment 'Portainer Edge Tunnel'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Docker Registry (Port 5000)
+# ───────────────────────────────────────────────────────────────────────────
+# Private Docker Registry - uncomment if running one
+
+# sudo ufw allow from 10.0.0.0/24 to any port 5000 proto tcp comment 'Docker Registry'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Docker API (Ports 2375, 2376) - USE WITH EXTREME CAUTION
+# ───────────────────────────────────────────────────────────────────────────
+
+# NEVER expose Docker API without TLS!
+# Port 2375 = unencrypted, full root access to Docker host
+# sudo ufw allow 2375/tcp  # DANGEROUS - Never do this!
+
+# Docker API with TLS (Port 2376)
+# Only if absolutely necessary, and only from management network
+# sudo ufw allow from 10.0.0.0/24 to any port 2376 proto tcp comment 'Docker API TLS'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Traefik Dashboard (Port 8080)
+# ───────────────────────────────────────────────────────────────────────────
+# If using Traefik as reverse proxy
+
+# sudo ufw allow from 10.0.0.0/24 to any port 8080 proto tcp comment 'Traefik Dashboard'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Docker Swarm (Ports 2377, 7946, 4789)
+# ───────────────────────────────────────────────────────────────────────────
+# Uncomment if running Docker Swarm
+
+# Cluster management
+# sudo ufw allow from 10.0.0.0/24 to any port 2377 proto tcp comment 'Swarm Management'
+
+# Node communication
+# sudo ufw allow from 10.0.0.0/24 to any port 7946 proto tcp comment 'Swarm Node TCP'
+# sudo ufw allow from 10.0.0.0/24 to any port 7946 proto udp comment 'Swarm Node UDP'
+
+# Overlay network
+# sudo ufw allow from 10.0.0.0/24 to any port 4789 proto udp comment 'Swarm Overlay'
+
+# ═══════════════════════════════════════════════════════════════════════════
+# IMPORTANT REMINDER
+# ═══════════════════════════════════════════════════════════════════════════
+# Docker containers bypass UFW by default!
+#
+# For containerized services:
+#   1. Bind to localhost: ports: ["127.0.0.1:8080:80"]
+#   2. Use reverse proxy (Nginx/Traefik)
+#   3. Configure DOCKER-USER iptables chain
+#
+# See: docs/DOCKER_NETWORKING.md

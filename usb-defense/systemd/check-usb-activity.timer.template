@@ -1,0 +1,19 @@
+[Unit]
+Description=USB Activity Monitor Timer
+Documentation=https://github.com/fidpa/ubuntu-server-security
+
+[Timer]
+# Run every 10 minutes
+OnCalendar=*:0/10
+
+# Random delay (0-30s) to prevent thundering herd
+RandomizedDelaySec=30
+
+# Run missed timer if system was powered off
+Persistent=true
+
+# Allow 1-minute accuracy window
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

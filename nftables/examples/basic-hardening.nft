@@ -1,0 +1,76 @@
+#!/usr/sbin/nft -f
+# ═══════════════════════════════════════════════════════════════════════════
+# Basic Hardening Example - Simple Web Server
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Use Case: Basic web server (nginx, Apache) with SSH access
+# Deployment: Copy to /etc/nftables.conf and customize
+#
+# Quick Deploy:
+# sudo cp examples/basic-hardening.nft /etc/nftables.conf
+# sudo nano /etc/nftables.conf  # Customize SSH_ALLOWED_IPS
+# sudo nft -c -f /etc/nftables.conf  # Validate
+# sudo nft -f /etc/nftables.conf     # Apply
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Customize: Add your management IPs here (comma-separated)
+# Example: { 192.168.1.100, 10.0.0.0/24 }
+define SSH_ALLOWED_IPS = { 192.168.1.0/24 }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Flush and Define
+# ═══════════════════════════════════════════════════════════════════════════
+
+flush table inet filter
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Baseline
+        iif lo accept
+        ct state established,related accept
+        ip protocol icmp accept
+        ip6 nexthdr icmpv6 accept
+
+        # SSH (restricted to management IPs)
+        ip saddr $SSH_ALLOWED_IPS tcp dport 22 accept comment "SSH from management"
+
+        # HTTP/HTTPS (public)
+        tcp dport { 80, 443 } accept comment "Web server"
+
+        # Drop + log
+        limit rate 5/minute counter log prefix "nft[drop]: " drop
+        counter drop
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+        counter drop
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# End of Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Security Checklist:
+# - ✅ Default deny policy
+# - ✅ SSH restricted to management IPs
+# - ✅ HTTP/HTTPS public access
+# - ✅ ICMP allowed (ping)
+# - ✅ Logging enabled
+#
+# Next Steps:
+# 1. Enable fail2ban for SSH brute-force protection
+# 2. Install SSL certificate (Let's Encrypt)
+# 3. Configure web server (nginx/Apache)
+# 4. Enable firewall: sudo systemctl enable nftables.service
+# ═══════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,195 @@
+#!/usr/sbin/nft -f
+# ═══════════════════════════════════════════════════════════════════════════
+# NAS + Docker Stack Example
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Use Case: NAS server with Docker services (Nextcloud, Paperless, monitoring)
+# Features: Samba, NFS, PostgreSQL, MariaDB, Docker containers, Prometheus
+# Deployment: Copy to /etc/nftables.conf and customize
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CUSTOMIZE THESE VARIABLES FOR YOUR SYSTEM
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Network Interfaces
+define MGMT_INTERFACE = "mgmt0"   # Management network (2.5 GbE recommended)
+define LAN_INTERFACE = "lan0"     # Client network (1 GbE)
+
+# Network Ranges
+define MGMT_NETWORK = 10.0.0.0/24
+define LAN_NETWORK = 192.168.100.0/24
+
+# Docker Networks (check with: docker network inspect <name> | grep Subnet)
+define DOCKER_NETWORKS = { 172.17.0.0/16, 172.18.0.0/16, 172.25.0.0/24 }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Flush Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+
+flush table inet filter
+flush table ip nat
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Main Firewall Table
+# ═══════════════════════════════════════════════════════════════════════════
+
+table inet filter {
+    # ═══════════════════════════════════════════════════════════════════════
+    # INPUT Chain - Traffic to the NAS itself
+    # ═══════════════════════════════════════════════════════════════════════
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Baseline
+        iif lo accept
+        ct state established,related accept
+        ip protocol icmp accept
+        ip6 nexthdr icmpv6 accept
+
+        # SSH (Management network only)
+        iifname $MGMT_INTERFACE tcp dport 22 accept comment "SSH from Management"
+
+        # ───────────────────────────────────────────────────────────────────
+        # File Sharing Services
+        # ───────────────────────────────────────────────────────────────────
+
+        # Samba/CIFS (Management + LAN)
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport { 139, 445 } accept comment "Samba"
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } udp dport { 137, 138 } accept comment "Samba NetBIOS"
+
+        # NFS (Management network only for security)
+        iifname $MGMT_INTERFACE tcp dport { 2049, 111 } accept comment "NFS"
+        iifname $MGMT_INTERFACE udp dport { 2049, 111 } accept comment "NFS"
+
+        # ───────────────────────────────────────────────────────────────────
+        # Database Services (for Docker containers)
+        # ───────────────────────────────────────────────────────────────────
+
+        # PostgreSQL (localhost + Docker containers)
+        iifname lo tcp dport 5432 accept comment "PostgreSQL"
+        ip saddr $DOCKER_NETWORKS tcp dport 5432 accept comment "PostgreSQL from Docker"
+
+        # MariaDB (localhost + Docker containers)
+        iifname lo tcp dport 3306 accept comment "MariaDB"
+        ip saddr $DOCKER_NETWORKS tcp dport 3306 accept comment "MariaDB from Docker"
+
+        # ───────────────────────────────────────────────────────────────────
+        # Web Services (Docker containers: Nextcloud, Paperless, etc.)
+        # ───────────────────────────────────────────────────────────────────
+
+        # HTTP/HTTPS (Management + LAN)
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport { 80, 443 } accept comment "HTTP/HTTPS"
+
+        # Nextcloud (if not on standard ports)
+        # iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport 8080 accept comment "Nextcloud"
+
+        # Paperless (internal only)
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport 8010 accept comment "Paperless"
+
+        # ───────────────────────────────────────────────────────────────────
+        # Monitoring & Observability
+        # ───────────────────────────────────────────────────────────────────
+
+        # Prometheus
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport 9090 accept comment "Prometheus"
+
+        # Grafana
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport 3000 accept comment "Grafana"
+
+        # Node Exporter
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport 9100 accept comment "Node Exporter"
+
+        # Uptime Kuma
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport 3001 accept comment "Uptime Kuma"
+
+        # ───────────────────────────────────────────────────────────────────
+        # Drop Everything Else
+        # ───────────────────────────────────────────────────────────────────
+
+        limit rate 5/minute counter log prefix "nft[input-drop]: " drop
+        counter drop
+    }
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # FORWARD Chain - Docker container traffic
+    # ═══════════════════════════════════════════════════════════════════════
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+
+        # Baseline
+        ct state established,related accept
+
+        # Docker containers → Internet (via gateway)
+        ip saddr $DOCKER_NETWORKS accept comment "Docker to Internet"
+
+        # LAN → Docker containers
+        iifname $LAN_INTERFACE ip daddr $DOCKER_NETWORKS accept comment "LAN to Docker"
+
+        # Management → Docker containers
+        iifname $MGMT_INTERFACE ip daddr $DOCKER_NETWORKS accept comment "Management to Docker"
+
+        # Docker inter-container communication
+        ip saddr $DOCKER_NETWORKS ip daddr $DOCKER_NETWORKS accept comment "Docker inter-container"
+
+        # Drop + log
+        limit rate 5/minute counter log prefix "nft[forward-drop]: " drop
+        counter drop
+    }
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # OUTPUT Chain
+    # ═══════════════════════════════════════════════════════════════════════
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NAT Table (optional - only if NAS also acts as gateway)
+# ═══════════════════════════════════════════════════════════════════════════
+# Note: If NAS is behind a router, NAT is typically not needed.
+# Uncomment if NAS also provides NAT for Docker containers.
+
+# table ip nat {
+#     chain postrouting {
+#         type nat hook postrouting priority 100; policy accept;
+#
+#         # Docker containers → Internet NAT
+#         oifname "eth0" ip saddr $DOCKER_NETWORKS masquerade comment "Docker NAT"
+#     }
+# }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# End of Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Deployment Checklist:
+# 1. ✅ Customize interfaces (MGMT_INTERFACE, LAN_INTERFACE)
+# 2. ✅ Update Docker networks (docker network inspect <name> | grep Subnet)
+# 3. ✅ Validate: sudo nft -c -f /etc/nftables.conf
+# 4. ✅ Deploy: sudo nft -f /etc/nftables.conf
+# 5. ✅ Enable: sudo systemctl enable nftables.service
+# 6. ✅ Test: Samba, NFS, Docker containers, Nextcloud, Paperless
+#
+# Services Included:
+# - ✅ Samba/CIFS file sharing (Management + LAN)
+# - ✅ NFS file sharing (Management only)
+# - ✅ PostgreSQL + MariaDB (Docker access)
+# - ✅ Nextcloud, Paperless (web services)
+# - ✅ Prometheus, Grafana, Uptime Kuma (monitoring)
+# - ✅ Docker networking (container internet + inter-container)
+# - ✅ Management network isolation (SSH, NFS)
+#
+# Troubleshooting:
+# - Check Samba: smbclient -L //nas-ip
+# - Check NFS: showmount -e nas-ip
+# - Check Docker: docker ps
+# - Check web services: curl http://nas-ip
+# - Logs: sudo journalctl -u nftables.service -u docker.service
+#
+# Documentation: https://github.com/fidpa/ubuntu-server-security/nftables/
+# ═══════════════════════════════════════════════════════════════════════════

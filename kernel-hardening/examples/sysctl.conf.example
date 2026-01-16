@@ -1,0 +1,98 @@
+## Example sysctl Hardening Configuration
+## Ubuntu Server 24.04 LTS
+##
+## This is an annotated example showing common customizations.
+## Copy parameters you need to /etc/sysctl.d/60-hardening.conf
+
+## ==============================================================================
+## Core Dumps (Critical for Security)
+## ==============================================================================
+
+## Disable core dumps for SUID programs (prevents password/key disclosure)
+## Values: 0 = disabled, 1 = enabled, 2 = enabled+root-readable
+## Recommendation: Always 0
+fs.suid_dumpable = 0
+
+## ==============================================================================
+## Network: IP Forwarding
+## ==============================================================================
+
+## Control IP packet forwarding
+## 0 = disabled (use for desktop/standalone servers)
+## 1 = enabled (REQUIRED for Docker, VMs, routers)
+##
+## IMPORTANT: If you run Docker, this MUST be 1!
+## Comment out if unsure:
+# net.ipv4.ip_forward = 0
+
+## ==============================================================================
+## Network: Reverse Path Filtering
+## ==============================================================================
+
+## Validate packet source addresses (anti-spoofing)
+## 0 = disabled
+## 1 = strict mode (best security, works with Docker)
+## 2 = loose mode (use if strict mode breaks routing)
+##
+## Recommendation: Use 1 unless you have complex routing
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+
+## ==============================================================================
+## Network: Martian Packet Logging
+## ==============================================================================
+
+## Log packets with impossible source addresses
+## 0 = disabled
+## 1 = enabled (may generate log noise on some networks)
+##
+## Recommendation: Enable, monitor logs for noise
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+
+## ==============================================================================
+## Kernel: Pointer Restriction
+## ==============================================================================
+
+## Hide kernel memory addresses
+## 0 = no restriction
+## 1 = root only (recommended for most systems)
+## 2 = nobody (may break systemd services)
+##
+## Recommendation: Use 1 unless you have no services
+kernel.kptr_restrict = 1
+
+## ==============================================================================
+## Kernel: Ptrace Scope
+## ==============================================================================
+
+## Control process debugging/tracing
+## 0 = no restriction
+## 1 = restricted (recommended, allows same-UID debugging)
+## 2 = admin-only (may break development tools)
+##
+## Recommendation: Use 1 for production, 0 for dev environments
+kernel.yama.ptrace_scope = 1
+
+## ==============================================================================
+## Kernel: Unprivileged BPF
+## ==============================================================================
+
+## Allow unprivileged users to use eBPF
+## 0 = allowed (kernel exploits possible)
+## 1 = disabled (recommended)
+##
+## Recommendation: Always 1
+kernel.unprivileged_bpf_disabled = 1
+
+## ==============================================================================
+## Kernel: SysRq Key
+## ==============================================================================
+
+## Enable kernel functions via Magic SysRq key
+## 0 = completely disabled
+## 1 = enable all functions
+## 176 = enable only sync and reboot (recommended)
+##
+## Recommendation: 176 for physical servers, 0 for VMs
+kernel.sysrq = 176

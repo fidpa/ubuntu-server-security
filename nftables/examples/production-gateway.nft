@@ -1,0 +1,200 @@
+#!/usr/sbin/nft -f
+# ═══════════════════════════════════════════════════════════════════════════
+# Production Gateway Example - Based on Pi 5 Router (189 lines optimized)
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Use Case: Advanced home gateway with WireGuard VPN, Docker, Dual-WAN
+# Features: NAT, routing, VPN, Docker networking, rate-limiting
+# Deployment: Copy to /etc/nftables.conf and customize all variables
+#
+# Based on: Pi 5 Router production config (battle-tested since 2024)
+# Incidents resolved: Negation bug, coturn, optimization
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CUSTOMIZE THESE VARIABLES FOR YOUR SYSTEM
+# ═══════════════════════════════════════════════════════════════════════════
+
+# WAN Interfaces (Internet connections)
+define WAN_PRIMARY = "eth0"      # DSL/Cable primary
+define WAN_BACKUP = "lte0"       # LTE backup (optional)
+
+# LAN Interfaces
+define LAN_INTERFACE = "eth3"    # Client network
+define MGMT_INTERFACE = "eth1"   # Management network
+
+# VPN Interface
+define VPN_INTERFACE = "wg0"
+define VPN_PORT = 51820
+
+# Network Ranges
+define LAN_NETWORK = 192.168.100.0/24
+define MGMT_NETWORK = 10.0.0.0/24
+define VPN_NETWORK = 10.29.93.0/24
+
+# Docker Networks (customize with: docker network inspect <name> | grep Subnet)
+define DOCKER_NETWORKS = { 172.17.0.0/16, 172.18.0.0/16, 172.25.0.0/24 }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Flush Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+
+flush table inet filter
+flush table ip nat
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Main Firewall Table
+# ═══════════════════════════════════════════════════════════════════════════
+
+table inet filter {
+    # ═══════════════════════════════════════════════════════════════════════
+    # INPUT Chain - Traffic to the router itself
+    # ═══════════════════════════════════════════════════════════════════════
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Baseline
+        iif lo accept
+        ct state established,related accept
+        ip protocol icmp accept
+        ip6 nexthdr icmpv6 accept
+
+        # SSH (LAN + Management + VPN)
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE, $VPN_INTERFACE } tcp dport 22 accept comment "SSH"
+
+        # DHCP + DNS server
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } udp dport 67 accept comment "DHCP"
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE, $VPN_INTERFACE } tcp dport 53 accept comment "DNS"
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE, $VPN_INTERFACE } udp dport 53 accept comment "DNS"
+
+        # Web services (internal)
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE, $VPN_INTERFACE } tcp dport { 80, 443 } accept comment "HTTP/HTTPS"
+
+        # WireGuard VPN
+        udp dport $VPN_PORT accept comment "WireGuard VPN"
+
+        # coturn TURN/STUN (for WebRTC, video calls)
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } tcp dport { 3478, 5349 } accept comment "coturn TURN/STUN"
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } udp dport { 3478, 5349 } accept comment "coturn TURN/STUN"
+        iifname { $LAN_INTERFACE, $MGMT_INTERFACE } udp dport 49152-65535 accept comment "coturn relay ports"
+
+        # Prometheus metrics (Management only)
+        iifname $MGMT_INTERFACE tcp dport 9090 accept comment "Prometheus"
+
+        # Rate-limited WAN HTTP/HTTPS (100/min)
+        iifname { $WAN_PRIMARY, $WAN_BACKUP } tcp dport { 80, 443 } ct state new limit rate over 100/minute counter log prefix "nft[http-ratelimit]: " reject
+        iifname { $WAN_PRIMARY, $WAN_BACKUP } tcp dport { 80, 443 } accept comment "WAN HTTP/HTTPS rate-limited"
+
+        # Drop + log
+        limit rate 5/minute counter log prefix "nft[input-drop]: " drop
+        counter drop
+    }
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # FORWARD Chain - Traffic through the router
+    # ═══════════════════════════════════════════════════════════════════════
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+
+        # MSS Clamping (CRITICAL for NAT clients)
+        tcp flags syn tcp option maxseg size set rt mtu
+
+        # Baseline
+        ct state established,related accept
+
+        # LAN → Internet (via WAN primary or backup)
+        iifname $LAN_INTERFACE oifname { $WAN_PRIMARY, $WAN_BACKUP } accept comment "LAN to Internet"
+
+        # VPN → Internet
+        iifname $VPN_INTERFACE oifname { $WAN_PRIMARY, $WAN_BACKUP } accept comment "VPN to Internet"
+
+        # VPN → LAN
+        iifname $VPN_INTERFACE oifname $LAN_INTERFACE accept comment "VPN to LAN"
+
+        # VPN peer-to-peer
+        iifname $VPN_INTERFACE oifname $VPN_INTERFACE accept comment "VPN peer-to-peer"
+
+        # Docker containers → Internet
+        ip saddr $DOCKER_NETWORKS oifname { $WAN_PRIMARY, $WAN_BACKUP } accept comment "Docker to Internet"
+
+        # LAN → Docker containers
+        iifname $LAN_INTERFACE ip daddr $DOCKER_NETWORKS accept comment "LAN to Docker"
+
+        # Docker inter-container
+        ip saddr $DOCKER_NETWORKS ip daddr $DOCKER_NETWORKS accept comment "Docker inter-container"
+
+        # Drop + log
+        limit rate 5/minute counter log prefix "nft[forward-drop]: " drop
+        counter drop
+    }
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # OUTPUT Chain
+    # ═══════════════════════════════════════════════════════════════════════
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NAT Table
+# ═══════════════════════════════════════════════════════════════════════════
+
+table ip nat {
+    chain prerouting {
+        type nat hook prerouting priority -100; policy accept;
+
+        # Port forwarding examples (customize as needed)
+        # iifname $WAN_PRIMARY tcp dport 8080 dnat to 192.168.100.10:80
+    }
+
+    chain postrouting {
+        type nat hook postrouting priority 100; policy accept;
+
+        # LAN → Internet NAT (Dual-WAN support)
+        oifname { $WAN_PRIMARY, $WAN_BACKUP } ip saddr $LAN_NETWORK masquerade comment "LAN NAT"
+
+        # VPN → Internet NAT
+        oifname { $WAN_PRIMARY, $WAN_BACKUP } ip saddr $VPN_NETWORK masquerade comment "VPN NAT"
+
+        # VPN → LAN NAT (required for return traffic)
+        oifname $LAN_INTERFACE ip saddr $VPN_NETWORK masquerade comment "VPN to LAN NAT"
+
+        # Docker → Internet NAT
+        oifname { $WAN_PRIMARY, $WAN_BACKUP } ip saddr $DOCKER_NETWORKS masquerade comment "Docker NAT"
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# End of Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Deployment Checklist:
+# 1. ✅ Customize all variables above (interfaces, networks, ports)
+# 2. ✅ Validate syntax: sudo nft -c -f /etc/nftables.conf
+# 3. ✅ Test on development system first
+# 4. ✅ Deploy: sudo nft -f /etc/nftables.conf
+# 5. ✅ Enable: sudo systemctl enable nftables.service
+# 6. ✅ Verify: Test internet, VPN, Docker connectivity
+#
+# Features Included:
+# - ✅ Dual-WAN failover (eth0 primary, lte0 backup)
+# - ✅ WireGuard VPN (Full DNS takeover supported)
+# - ✅ Docker networking (container internet + inter-container)
+# - ✅ coturn TURN/STUN (WebRTC, video calls)
+# - ✅ Rate-limiting (WAN HTTP 100/min)
+# - ✅ MSS clamping (NAT MTU fix)
+# - ✅ Management network isolation
+#
+# Troubleshooting:
+# - Check routing: ip route show
+# - Check WireGuard: sudo wg show
+# - Check Docker: docker network ls
+# - Check NAT: sudo nft list table ip nat
+# - Logs: sudo journalctl -u nftables.service
+#
+# Documentation: https://github.com/fidpa/ubuntu-server-security/nftables/
+# ═══════════════════════════════════════════════════════════════════════════

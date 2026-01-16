@@ -1,0 +1,145 @@
+# Copyright (c) 2025-2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# SSH Hardening Configuration (Base Template)
+# Purpose: Hardened SSH baseline configuration for all Ubuntu servers
+# Deployment: /etc/ssh/sshd_config.d/99-ssh-hardening.conf
+#
+# Security Principles (2025 Best Practices):
+# - Key-based authentication ONLY (no passwords)
+# - Ed25519 keys preferred (modern, fast, secure)
+# - Disable legacy/insecure features
+# - Rate limiting (prevent brute force)
+
+# ═══════════════════════════════════════════════════════════
+# Authentication
+# ═══════════════════════════════════════════════════════════
+
+# Public key authentication (REQUIRED)
+PubkeyAuthentication yes
+
+# Password authentication (DISABLED - security requirement)
+PasswordAuthentication no
+
+# Challenge-response authentication (DISABLED)
+ChallengeResponseAuthentication no
+
+# Kerberos authentication (DISABLED - not used)
+KerberosAuthentication no
+
+# GSSAPI authentication (DISABLED - not used)
+GSSAPIAuthentication no
+
+# Empty passwords (DISABLED)
+PermitEmptyPasswords no
+
+# ═══════════════════════════════════════════════════════════
+# Root Access
+# ═══════════════════════════════════════════════════════════
+
+# Root login (DISABLED - use sudo instead)
+PermitRootLogin no
+
+# ═══════════════════════════════════════════════════════════
+# Cryptography
+# ═══════════════════════════════════════════════════════════
+
+# Preferred key types (modern, secure)
+# Ed25519 > ECDSA > RSA (in order of preference)
+PubkeyAcceptedKeyTypes ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256
+
+# Host key algorithms (Ed25519 preferred)
+HostKeyAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256
+
+# Key exchange algorithms (modern, no SHA-1)
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256
+
+# Ciphers (AES-GCM preferred, no CBC)
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+
+# Message authentication codes (no MD5, SHA-1)
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+# ═══════════════════════════════════════════════════════════
+# Connection Settings
+# ═══════════════════════════════════════════════════════════
+
+# Idle timeout (15 minutes)
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# Login grace time (1 minute to authenticate)
+LoginGraceTime 60
+
+# Maximum concurrent sessions per connection
+MaxSessions 10
+
+# Maximum authentication attempts (prevent brute force)
+MaxAuthTries 3
+
+# Maximum concurrent unauthenticated connections (rate limiting)
+MaxStartups 3:50:10
+
+# ═══════════════════════════════════════════════════════════
+# Security Features
+# ═══════════════════════════════════════════════════════════
+
+# Strict mode (check file permissions)
+StrictModes yes
+
+# X11 forwarding (DISABLED - security risk)
+X11Forwarding no
+
+# Agent forwarding (DISABLED - security risk)
+AllowAgentForwarding no
+
+# TCP forwarding (DISABLED by default - enable in drop-in overrides if needed)
+AllowTcpForwarding no
+
+# Tunnel devices (DISABLED)
+PermitTunnel no
+
+# User environment (DISABLED - security risk)
+PermitUserEnvironment no
+
+# ═══════════════════════════════════════════════════════════
+# Logging
+# ═══════════════════════════════════════════════════════════
+
+# Log level (INFO for security events)
+LogLevel INFO
+
+# ═══════════════════════════════════════════════════════════
+# System Configuration
+# ═══════════════════════════════════════════════════════════
+
+# Use kernel sandbox (seccomp-bpf)
+UsePrivilegeSeparation sandbox
+
+# Print MOTD (DISABLED - use custom scripts)
+PrintMotd no
+
+# Print last log (ENABLED - useful for security)
+PrintLastLog yes
+
+# Banner (DISABLED - use /etc/issue.net if needed)
+Banner none
+
+# ═══════════════════════════════════════════════════════════
+# Notes
+# ═══════════════════════════════════════════════════════════
+
+# Role-specific overrides (use drop-ins in sshd_config.d/):
+# - Gateway/Router: May need AllowTcpForwarding for port forwarding
+# - Development/Workstation: May need X11Forwarding for remote desktop
+# - Minimal/Headless: No overrides needed (this base config is sufficient)
+#
+# CIS Benchmark Compliance:
+# This configuration implements 15+ CIS Ubuntu Benchmark controls (5.2.1 to 5.2.16)
+# See docs/CIS_CONTROLS.md for detailed mapping
+#
+# Related documentation:
+# - drop-ins/README.md - Override patterns and use cases
+# - docs/SETUP.md - Deployment guide
+# - docs/TROUBLESHOOTING.md - Common issues and recovery

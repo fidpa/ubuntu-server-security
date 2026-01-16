@@ -1,0 +1,129 @@
+# AIDE Configuration Template
+# Copyright (c) 2025-2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Advanced Intrusion Detection Environment (AIDE) configuration
+# Based on production servers with 100% CIS Benchmark compliance
+#
+# Variables to replace before deployment:
+# {{HOSTNAME}} - Your server hostname
+# {{NUM_WORKERS}} - Number of parallel workers (default: 4, tune for your CPU)
+# {{DROPIN_DIR}} - Drop-in directory (default: /etc/aide/aide.conf.d)
+
+# Database locations
+database=file:/var/lib/aide/aide.db
+database_out=file:/var/lib/aide/aide.db.new
+database_new=file:/var/lib/aide/aide.db.new
+
+# Gzip the database for reduced size
+gzip_dbout=yes
+
+# Report URL (where AIDE sends its reports)
+report_url=stdout
+report_url=file:/var/log/aide/aide.log
+
+# Best Practice 2025: Use modern hash algorithms (SHA256 + SHA512)
+# Old algorithms (MD5, SHA1) are deprecated due to collision attacks
+checksums=sha256+sha512
+
+# Performance tuning: Multi-threading support (AIDE v0.18+)
+# Tune this based on your CPU cores (typically num_cores - 1)
+num_workers={{NUM_WORKERS}}
+
+# AIDE Groups (Predefined patterns for different file types)
+
+# Full = Complete integrity checking for immutable files
+Full = OwnerMode+n+l+X+acl+selinux+xattrs+sha256+sha512
+
+# VarTime = Like Full, but ignores modification time (for files that are touched but not changed)
+VarTime = Full-m
+
+# VarInode = Like Full, but ignores inode number (for files that can be recreated)
+VarInode = VarTime-i
+
+# VarFile = Only metadata, ignores content changes (for files with dynamic content)
+VarFile = OwnerMode+n+l+X
+
+# VarDir = For directories where content changes but structure should be monitored
+VarDir = OwnerMode+n+i+X
+
+# AIDE v0.18+ Log Groups (Best Practice 2025)
+ActLog = Full+growing+ANF+I      # Active logs (allowed to grow)
+RotLog = Full+ANF                # Rotated logs (size can change)
+CompSerLog = Full+growing+I      # Compressed logs (gzip)
+
+# OwnerMode = Only ownership and permissions
+OwnerMode = p+u+g+acl+selinux
+
+# LANANA = Linux Assigned Names And Numbers Authority (device files)
+LANANA = p+u+g+acl+selinux
+
+# ============================================
+# AIDE Rules (What to monitor)
+# ============================================
+
+# System binaries and libraries (immutable)
+/bin Full
+/sbin Full
+/usr/bin Full
+/usr/sbin Full
+/usr/local/bin Full
+/usr/local/sbin Full
+/lib Full
+/lib64 Full
+/usr/lib Full
+/usr/lib64 Full
+
+# Boot files (kernel, initramfs)
+/boot Full
+
+# Configuration files
+/etc Full
+
+# Root home directory
+/root Full
+
+# ============================================
+# Standard Excludes (Virtual filesystems, temporary data)
+# ============================================
+
+# Virtual filesystems (never monitor these)
+!/proc
+!/sys
+!/dev
+!/run
+!/tmp
+!/var/tmp
+
+# Package manager cache (changes on every apt update)
+!/var/cache/apt
+!/var/lib/apt/lists
+!/var/lib/dpkg/info
+
+# Log directories (use ActLog/RotLog instead of Full)
+/var/log ActLog
+
+# Variable data directories
+/var/spool VarDir
+/var/mail VarDir
+
+# systemd runtime
+!/run/systemd
+
+# ============================================
+# Drop-in Configuration Support
+# ============================================
+
+# Include additional rules from {{DROPIN_DIR}}
+# Files with executable bit set are executed and their output included
+# This allows service-specific excludes (Docker, PostgreSQL, Nextcloud, etc.)
+@@x_include {{DROPIN_DIR}} ^[a-zA-Z0-9_-]+$
+
+# ============================================
+# AIDE Database Itself
+# ============================================
+
+# Don't monitor AIDE's own files (would cause circular updates)
+!/var/lib/aide
+!/var/log/aide

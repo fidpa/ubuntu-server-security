@@ -1,0 +1,78 @@
+# Copyright (c) 2025-2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Basic SSH Hardening Configuration (Single File)
+# Purpose: Combined base hardening + gateway features
+# Deployment: /etc/ssh/sshd_config.d/99-ssh-hardening.conf
+#
+# Use case: Network gateway, router, VPN endpoint
+# Features: Key-only auth, modern crypto, TCP forwarding enabled
+
+# ═══════════════════════════════════════════════════════════
+# Authentication
+# ═══════════════════════════════════════════════════════════
+
+PubkeyAuthentication yes
+PasswordAuthentication no
+ChallengeResponseAuthentication no
+KerberosAuthentication no
+GSSAPIAuthentication no
+PermitEmptyPasswords no
+
+# ═══════════════════════════════════════════════════════════
+# Root Access
+# ═══════════════════════════════════════════════════════════
+
+PermitRootLogin no
+
+# ═══════════════════════════════════════════════════════════
+# Cryptography
+# ═══════════════════════════════════════════════════════════
+
+PubkeyAcceptedKeyTypes ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256
+HostKeyAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+# ═══════════════════════════════════════════════════════════
+# Connection Settings
+# ═══════════════════════════════════════════════════════════
+
+ClientAliveInterval 300
+ClientAliveCountMax 2
+LoginGraceTime 60
+MaxSessions 10
+MaxAuthTries 3
+MaxStartups 3:50:10
+
+# ═══════════════════════════════════════════════════════════
+# Security Features
+# ═══════════════════════════════════════════════════════════
+
+StrictModes yes
+X11Forwarding no
+AllowAgentForwarding no
+PermitTunnel no
+PermitUserEnvironment no
+
+# Gateway features (TCP forwarding enabled for VPN/tunnels)
+AllowTcpForwarding yes
+AllowStreamLocalForwarding yes
+GatewayPorts clientspecified
+
+# ═══════════════════════════════════════════════════════════
+# Logging
+# ═══════════════════════════════════════════════════════════
+
+LogLevel INFO
+
+# ═══════════════════════════════════════════════════════════
+# System Configuration
+# ═══════════════════════════════════════════════════════════
+
+UsePrivilegeSeparation sandbox
+PrintMotd no
+PrintLastLog yes
+Banner none

@@ -1,0 +1,16 @@
+[Unit]
+Description=Security Log Monitor Timer
+Documentation=https://github.com/fidpa/ubuntu-server-security
+
+[Timer]
+# Run every 15 minutes
+OnCalendar=*:0/15
+
+# Run immediately if missed (e.g., system was off)
+Persistent=true
+
+# Optional: Add random delay to prevent load spikes
+# RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

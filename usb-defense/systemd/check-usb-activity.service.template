@@ -1,0 +1,15 @@
+[Unit]
+Description=USB Activity Monitor (auditd log analysis)
+Documentation=https://github.com/fidpa/ubuntu-server-security
+After=auditd.service
+Requires=auditd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/check-usb-activity.sh
+StandardOutput=journal
+StandardError=journal
+
+# Environment (optional - customize as needed)
+#Environment="USB_DEFENSE_ALERT_EMAIL=root"
+#Environment="USB_DEFENSE_LOOKBACK_MINUTES=6"

@@ -1,0 +1,107 @@
+# =============================================================================
+# Ubuntu Server Security - auditd Docker Rules
+# =============================================================================
+#
+# Container-aware audit rules for Docker/Podman hosts
+# Use in addition to base or aggressive rules
+#
+# Installation:
+#   sudo cp audit-docker.rules.template /etc/audit/rules.d/50-docker.rules
+#   sudo augenrules --load
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Docker Daemon Configuration
+# -----------------------------------------------------------------------------
+# Monitor Docker daemon configuration changes
+-w /etc/docker/ -p wa -k docker_config
+-w /etc/docker/daemon.json -p wa -k docker_config
+
+# Docker socket access
+-w /var/run/docker.sock -p wa -k docker_socket
+
+# Docker service configuration
+-w /lib/systemd/system/docker.service -p wa -k docker_service
+-w /lib/systemd/system/docker.socket -p wa -k docker_service
+-w /etc/systemd/system/docker.service.d/ -p wa -k docker_service
+
+# -----------------------------------------------------------------------------
+# Docker Binary and Runtime
+# -----------------------------------------------------------------------------
+# Docker CLI usage
+-a always,exit -F path=/usr/bin/docker -F perm=x -F auid>=1000 -F auid!=4294967295 -k docker_cmd
+-a always,exit -F path=/usr/bin/dockerd -F perm=x -F auid>=1000 -F auid!=4294967295 -k docker_cmd
+
+# Docker Compose
+-a always,exit -F path=/usr/bin/docker-compose -F perm=x -F auid>=1000 -F auid!=4294967295 -k docker_cmd
+-a always,exit -F path=/usr/local/bin/docker-compose -F perm=x -F auid>=1000 -F auid!=4294967295 -k docker_cmd
+
+# containerd
+-a always,exit -F path=/usr/bin/containerd -F perm=x -F auid>=1000 -F auid!=4294967295 -k containerd
+-a always,exit -F path=/usr/bin/containerd-shim -F perm=x -F auid>=1000 -F auid!=4294967295 -k containerd
+-a always,exit -F path=/usr/bin/containerd-shim-runc-v2 -F perm=x -F auid>=1000 -F auid!=4294967295 -k containerd
+
+# runc
+-a always,exit -F path=/usr/bin/runc -F perm=x -F auid>=1000 -F auid!=4294967295 -k runc
+-a always,exit -F path=/usr/sbin/runc -F perm=x -F auid>=1000 -F auid!=4294967295 -k runc
+
+# -----------------------------------------------------------------------------
+# Container Storage
+# -----------------------------------------------------------------------------
+# Docker data directory (be careful - can be noisy)
+# Uncomment only if you need to track container filesystem changes
+# -w /var/lib/docker/ -p wa -k docker_storage
+
+# Docker volumes
+-w /var/lib/docker/volumes/ -p wa -k docker_volumes
+
+# Container configuration
+-w /var/lib/docker/containers/ -p wa -k docker_containers
+
+# -----------------------------------------------------------------------------
+# Podman Support (if installed)
+# -----------------------------------------------------------------------------
+-a always,exit -F path=/usr/bin/podman -F perm=x -F auid>=1000 -F auid!=4294967295 -k podman_cmd
+-w /etc/containers/ -p wa -k podman_config
+
+# -----------------------------------------------------------------------------
+# Container Network
+# -----------------------------------------------------------------------------
+# Docker network modifications
+-a always,exit -F arch=b64 -S sethostname -F exe=/usr/bin/docker -k docker_network
+-a always,exit -F arch=b32 -S sethostname -F exe=/usr/bin/docker -k docker_network
+
+# iptables/nftables rules (Docker modifies these)
+-w /etc/docker/daemon.json -p wa -k docker_network
+-a always,exit -F path=/usr/sbin/iptables -F perm=x -F exe=/usr/bin/dockerd -k docker_firewall
+-a always,exit -F path=/usr/sbin/nft -F perm=x -F exe=/usr/bin/dockerd -k docker_firewall
+
+# -----------------------------------------------------------------------------
+# Container Secrets
+# -----------------------------------------------------------------------------
+# Docker secrets (Swarm mode)
+-w /var/lib/docker/swarm/worker/tasks/ -p r -k docker_secrets
+
+# Docker build secrets
+-w /var/lib/docker/buildkit/ -p wa -k docker_build
+
+# -----------------------------------------------------------------------------
+# Docker Compose Files
+# -----------------------------------------------------------------------------
+# Common locations for compose files
+-w /opt/docker/ -p wa -k docker_compose
+-w /opt/infrastructure/ -p wa -k docker_compose
+
+# -----------------------------------------------------------------------------
+# Exclusions (reduce noise from normal container operations)
+# -----------------------------------------------------------------------------
+# Exclude containerd health checks (very frequent)
+-a always,exclude -F msgtype=EXECVE -F exe=/usr/bin/containerd-shim-runc-v2 -F key=exec
+
+# Exclude Docker overlay filesystem operations (extremely noisy)
+-a always,exclude -F msgtype=PATH -F name=/var/lib/docker/overlay2
+
+# =============================================================================
+# END OF DOCKER RULES
+# =============================================================================

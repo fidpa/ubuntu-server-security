@@ -1,0 +1,71 @@
+# fail2ban Custom Jail Configuration
+# Copyright (c) 2025-2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Template for creating your own custom jails
+# Copy this file to 99-custom.conf and edit as needed:
+#   sudo cp 99-custom.conf.example /etc/fail2ban/jail.d/99-custom.conf
+#   sudo nano /etc/fail2ban/jail.d/99-custom.conf
+
+# Example 1: Nextcloud Brute-Force Protection
+# [nextcloud]
+# enabled = true
+# backend = systemd
+# port = http,https
+# filter = nextcloud
+# logpath = /var/log/nginx/nextcloud.access.log
+# maxretry = 5
+# findtime = 600
+# bantime = 3600
+
+# Example 2: PostgreSQL Authentication Failures
+# [postgresql]
+# enabled = true
+# backend = systemd
+# port = 5432
+# filter = postgresql
+# logpath = /var/log/postgresql/postgresql-16-main.log
+# maxretry = 3
+# findtime = 600
+# bantime = 3600
+
+# Example 3: Samba Authentication Failures
+# [samba]
+# enabled = true
+# backend = systemd
+# port = 139,445
+# filter = samba
+# logpath = /var/log/samba/log.smbd
+# maxretry = 3
+# findtime = 600
+# bantime = 3600
+
+# Example 4: Postfix Mail Server (SMTP AUTH)
+# [postfix-auth]
+# enabled = true
+# backend = systemd
+# port = smtp,submission,smtps
+# filter = postfix[mode=auth]
+# logpath = /var/log/mail.log
+# maxretry = 3
+# findtime = 600
+# bantime = 3600
+
+# Example 5: Apache HTTP Auth
+# [apache-auth]
+# enabled = true
+# backend = systemd
+# port = http,https
+# filter = apache-auth
+# logpath = /var/log/apache2/error.log
+# maxretry = 5
+# findtime = 600
+# bantime = 3600
+
+# Tips for Creating Custom Jails:
+# 1. Check if a filter already exists: ls /etc/fail2ban/filter.d/
+# 2. Test your filter: fail2ban-regex /path/to/logfile /etc/fail2ban/filter.d/yourfilter.conf
+# 3. Validate syntax: sudo fail2ban-client --test
+# 4. Monitor effectiveness: sudo fail2ban-client status yourjail
+# 5. View recent bans: sudo fail2ban-client status yourjail | grep "Banned IP"

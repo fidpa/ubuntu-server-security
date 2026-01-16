@@ -1,0 +1,49 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# UFW Drop-in: Web Server Rules
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Purpose: HTTP/HTTPS rules for web servers (Nginx, Apache, etc.)
+# Use Case: Public web server, reverse proxy, static file server
+#
+# Ports:
+#   80/tcp  - HTTP
+#   443/tcp - HTTPS
+#
+# Usage:
+#   1. Review and customize if needed
+#   2. Execute commands manually or use deploy-ufw-rules.sh
+#   3. Verify with: sudo ufw status numbered
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────────
+# HTTP/HTTPS - Public Access (Standard)
+# ───────────────────────────────────────────────────────────────────────────
+
+# HTTP - Redirect to HTTPS or static content
+sudo ufw allow 80/tcp comment 'HTTP'
+
+# HTTPS - Secure web traffic
+sudo ufw allow 443/tcp comment 'HTTPS'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Alternative: Network-Restricted (Internal Server)
+# ───────────────────────────────────────────────────────────────────────────
+# Uncomment these and comment above for internal-only access
+
+# Management Network only
+# sudo ufw allow from 10.0.0.0/24 to any port 80 proto tcp comment 'HTTP Management'
+# sudo ufw allow from 10.0.0.0/24 to any port 443 proto tcp comment 'HTTPS Management'
+
+# Client LAN only
+# sudo ufw allow from 192.168.100.0/24 to any port 80 proto tcp comment 'HTTP LAN'
+# sudo ufw allow from 192.168.100.0/24 to any port 443 proto tcp comment 'HTTPS LAN'
+
+# ───────────────────────────────────────────────────────────────────────────
+# Optional: HTTP/3 (QUIC) - Experimental
+# ───────────────────────────────────────────────────────────────────────────
+# Uncomment if using HTTP/3 (e.g., with Nginx 1.25+)
+
+# sudo ufw allow 443/udp comment 'HTTPS QUIC'

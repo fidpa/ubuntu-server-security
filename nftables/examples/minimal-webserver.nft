@@ -1,0 +1,80 @@
+#!/usr/sbin/nft -f
+# ═══════════════════════════════════════════════════════════════════════════
+# Minimal Web Server Example - nginx + PostgreSQL
+# ═══════════════════════════════════════════════════════════════════════════
+# Copyright (c) 2026 Marc Allgeier (fidpa)
+# SPDX-License-Identifier: MIT
+# https://github.com/fidpa/ubuntu-server-security
+#
+# Use Case: Simple web application server (nginx, PostgreSQL)
+# Deployment: Copy to /etc/nftables.conf and customize SSH_ALLOWED_IPS
+#
+# Quick Deploy:
+# sudo cp examples/minimal-webserver.nft /etc/nftables.conf
+# sudo nano /etc/nftables.conf  # Customize SSH_ALLOWED_IPS
+# sudo nft -f /etc/nftables.conf
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Customize: Add your management IPs here
+define SSH_ALLOWED_IPS = { 192.168.1.0/24, 10.0.0.0/24 }
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Flush and Define
+# ═══════════════════════════════════════════════════════════════════════════
+
+flush table inet filter
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        # Baseline
+        iif lo accept
+        ct state established,related accept
+        ip protocol icmp accept
+        ip6 nexthdr icmpv6 accept
+
+        # SSH (restricted to management)
+        ip saddr $SSH_ALLOWED_IPS tcp dport 22 accept comment "SSH"
+
+        # HTTP/HTTPS (public)
+        tcp dport { 80, 443 } accept comment "nginx"
+
+        # Drop + log
+        limit rate 5/minute counter log prefix "nft[drop]: " drop
+        counter drop
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+        counter drop
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# End of Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Stack Components:
+# - nginx (HTTP/HTTPS proxy)
+# - PostgreSQL (database, localhost only)
+# - Application backend (e.g., Python Flask, Node.js)
+#
+# Security Checklist:
+# - ✅ SSH restricted to management IPs
+# - ✅ HTTP/HTTPS public access
+# - ✅ PostgreSQL localhost-only (not exposed)
+# - ✅ fail2ban recommended for SSH brute-force protection
+# - ✅ SSL certificate (Let's Encrypt certbot)
+#
+# Next Steps:
+# 1. Install stack: sudo apt install nginx postgresql
+# 2. Configure nginx: /etc/nginx/sites-available/default
+# 3. Setup PostgreSQL: sudo -u postgres createuser <appuser>
+# 4. Deploy app: systemd service for backend
+# 5. SSL: sudo certbot --nginx -d yourdomain.com
+# ═══════════════════════════════════════════════════════════════════════════

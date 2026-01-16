@@ -1,0 +1,57 @@
+# Lynis Custom Profile - Server Environment
+# SPDX-License-Identifier: MIT
+#
+# Purpose: Reduce false-positives for Ubuntu server environments
+# Usage: sudo lynis audit system --profile /etc/lynis/custom.prf
+
+# ============================================
+# Skip Desktop-Specific Tests
+# ============================================
+
+# X11/GUI checks (not applicable for headless servers)
+skip-test=FILE-6310    # X11 related files
+
+# ============================================
+# Skip Irrelevant Package Checks
+# ============================================
+
+# Package updates (manual schedule, not always-up-to-date)
+skip-test=PKGS-7392    # Package updates available
+
+# debsums (dev packages may be modified)
+skip-test=PKGS-7398    # debsums integrity check
+
+# ============================================
+# Skip Unused Service Checks
+# ============================================
+
+# Printing services (no printers on servers)
+skip-test=PRNT-2307    # CUPS daemon
+
+# Mail server (if not running a mail server)
+skip-test=MAIL-8818    # Postfix/Exim checks
+
+# ============================================
+# Development-Aware Skips
+# ============================================
+
+# SSH features required for development workflows
+# (Uncomment if using VS Code Remote, Docker port forwarding, etc.)
+#skip-test=SSH-7408:X11Forwarding      # Required for GUI apps over SSH
+#skip-test=SSH-7408:AllowAgentForwarding # Required for Git SSH keys
+#skip-test=SSH-7408:AllowTcpForwarding   # Required for Docker port forwarding
+
+# ============================================
+# Customize Compliance Thresholds
+# ============================================
+
+# Password aging (180 days for home servers, 90 for production)
+config:password_max_days:180
+
+# ============================================
+# Additional Customizations (Examples)
+# ============================================
+
+# Uncomment to skip specific compliance frameworks
+#skip-test=CUST-0001    # PCI-DSS (if not applicable)
+#skip-test=CUST-0002    # HIPAA (if not applicable)
