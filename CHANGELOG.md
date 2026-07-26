@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ansible playbook support
 - Docker security hardening module
 
+## [1.1.1] - 2026-07-26
+
+### Added
+- `README.md`: Release- und Last-Commit-Badge ergänzt.
+
 ## [1.1.0] - 2026-01-21
 
 ### Added
