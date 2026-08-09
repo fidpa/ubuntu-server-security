@@ -426,7 +426,8 @@ check_audit_events() {
 
     local current_events=""
     if grep -qi "denied" <<<"$audit_output"; then
-        # Normalisiere Whitespace statt awk $5 $6 (robuster, keine Spalten-Annahmen)
+        # Normalize whitespace instead of picking awk columns: more robust,
+        # because it makes no assumption about the column layout.
         current_events=$(grep -i "denied" <<<"$audit_output" | \
             sed 's/[[:space:]]\+/ /g' | \
             sort -u)

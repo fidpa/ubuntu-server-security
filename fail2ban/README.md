@@ -35,7 +35,7 @@ sudo fail2ban-client status
 |----------|-------------|
 | [SETUP.md](docs/SETUP.md) | Installation, jail configuration, and testing |
 | [GEOIP_FILTERING.md](docs/GEOIP_FILTERING.md) | Country-based blocking setup |
-| [TELEGRAM_ALERTS.md](docs/TELEGRAM_ALERTS.md) | Real-time ban notifications |
+| [TELEGRAM_INTEGRATION.md](docs/TELEGRAM_INTEGRATION.md) | Real-time ban notifications |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues (false positives, unban procedures) |
 
 ## Requirements

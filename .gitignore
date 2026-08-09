@@ -73,3 +73,6 @@ COMPONENT_README_TEMPLATE.md
 # rclone links and CLAUDE.md symlinks
 *.rclonelink
 CLAUDE.md
+
+# Local agent workspace (slash commands, agent config)
+.claude/

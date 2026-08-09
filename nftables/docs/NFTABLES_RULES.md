@@ -322,7 +322,7 @@ tcp dport 8000 counter reject comment "Not in whitelist"
 
 **Why?**: nftables limitation - negation (`!=`) doesn't work with interval sets.
 
-**Source**: Pi 5 Router Incident (NFTABLES_INTERVAL_SET_NEGATION_BUG_221225.md)
+**Source**: production gateway incident, December 2025
 
 ---
 

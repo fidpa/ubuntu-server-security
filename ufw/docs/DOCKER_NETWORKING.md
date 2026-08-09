@@ -4,65 +4,65 @@ SPDX-License-Identifier: MIT
 https://github.com/fidpa/ubuntu-server-security
 -->
 
-# Docker und UFW Networking
+# Docker and UFW networking
 
-Docker und UFW haben eine komplizierte Beziehung. Dieses Dokument erklärt die Probleme und Lösungen.
+Docker and UFW have a complicated relationship. This document explains the problems and the solutions.
 
-## Das Problem
+## The problem
 
-**Docker umgeht UFW!**
+**Docker bypasses UFW.**
 
-Docker manipuliert iptables direkt und fügt eigene Chains (`DOCKER`, `DOCKER-USER`) ein, die VOR UFW-Regeln verarbeitet werden.
+Docker manipulates iptables directly and inserts its own chains (`DOCKER`, `DOCKER-USER`), which are evaluated BEFORE the UFW rules.
 
-### Beispiel
+### Example
 
 ```bash
-# UFW: Alles blockieren
+# UFW: block everything
 sudo ufw default deny incoming
 
-# Docker: Container auf Port 8080
+# Docker: container on port 8080
 docker run -p 8080:80 nginx
 
-# Ergebnis: Port 8080 ist trotz UFW von außen erreichbar!
+# Result: port 8080 is reachable from outside despite UFW!
 ```
 
-### Warum passiert das?
+### Why does this happen?
 
-Docker verwendet die FORWARD-Chain und NAT-Regeln:
+Docker uses the FORWARD chain and NAT rules:
 
 ```
 Packet → PREROUTING (NAT) → FORWARD (Docker) → Container
                                 ↑
-                        UFW INPUT wird umgangen!
+                        UFW INPUT is bypassed!
 ```
 
 ```bash
-# Docker-Chains anzeigen
+# Show the Docker chains
 sudo iptables -L -n | grep -A5 "Chain DOCKER"
 ```
 
-## Lösungen
+## Solutions
 
-### Lösung 1: Service-Binding auf localhost (empfohlen)
+### Solution 1: bind services to localhost (recommended)
 
-**Beste Lösung für die meisten Use Cases.**
+**The best solution for most use cases.**
 
 ```yaml
 # docker-compose.yml
 services:
   app:
     ports:
-      - "127.0.0.1:8080:8080"  # Nur localhost
+      - "127.0.0.1:8080:8080"  # localhost only
 ```
 
-**Dann Reverse Proxy nutzen**:
+**Then put a reverse proxy in front**:
 ```
 Client → UFW (443) → Nginx → localhost:8080 → Container
 ```
 
-### Lösung 2: Host Network Mode
+### Solution 2: host network mode
 
-Container nutzt Host-Network direkt, UFW greift normal.
+The container uses the host network directly, so UFW applies as usual.
 
 ```yaml
 services:
@@ -70,33 +70,33 @@ services:
     network_mode: "host"
 ```
 
-**Nachteile**:
-- Keine Network-Isolation
-- Port-Konflikte möglich
-- Nicht für alle Container geeignet
+**Drawbacks**:
+- No network isolation
+- Port conflicts are possible
+- Not suitable for every container
 
-### Lösung 3: DOCKER-USER Chain
+### Solution 3: DOCKER-USER chain
 
-Docker lässt die `DOCKER-USER` Chain für Custom-Regeln.
+Docker leaves the `DOCKER-USER` chain to you for custom rules.
 
 ```bash
-# Management-Netzwerk erlauben, Rest blockieren
+# Allow the management network, block the rest
 sudo iptables -I DOCKER-USER -i eth0 -s 10.0.0.0/24 -j ACCEPT
 sudo iptables -I DOCKER-USER -i eth0 -j DROP
 
-# Regeln persistieren (NICHT via iptables-persistent!)
+# Persist the rules (NOT via iptables-persistent!)
 ```
 
-**Persistierung** (in `/etc/rc.local` oder systemd-Service):
+**Persistence** (in `/etc/rc.local` or a systemd service):
 ```bash
 #!/bin/bash
 iptables -I DOCKER-USER -i eth0 -s 10.0.0.0/24 -j ACCEPT
 iptables -I DOCKER-USER -i eth0 -j DROP
 ```
 
-### Lösung 4: Docker Daemon konfigurieren
+### Solution 4: configure the Docker daemon
 
-**iptables deaktivieren** (nicht empfohlen):
+**Disable iptables** (not recommended):
 
 ```json
 // /etc/docker/daemon.json
@@ -105,14 +105,14 @@ iptables -I DOCKER-USER -i eth0 -j DROP
 }
 ```
 
-**Nachteile**:
-- Container-zu-Container Networking bricht
-- NAT für Internetzugang funktioniert nicht
-- Nur für sehr spezielle Setups
+**Drawbacks**:
+- Container-to-container networking breaks
+- NAT for internet access stops working
+- Only for very specific setups
 
-## Reverse Proxy Pattern (Best Practice)
+## Reverse proxy pattern (best practice)
 
-### Architektur
+### Architecture
 
 ```
                   ┌─────────────────────────────────────┐
@@ -128,11 +128,11 @@ Internet ───┬────►│ UFW (443) ──► Nginx (reverse proxy
             │     │              │ DB  (internal)  │     │
             │     │              └────────────────┘     │
             │     │                                      │
-            X     │ UFW blockt direkten Docker-Zugriff  │
+            X     │ UFW blocks direct Docker access      │
                   └─────────────────────────────────────┘
 ```
 
-### Nginx Konfiguration
+### Nginx configuration
 
 ```nginx
 # /etc/nginx/sites-available/app
@@ -148,26 +148,26 @@ server {
 }
 ```
 
-### UFW Regeln
+### UFW rules
 
 ```bash
-# Nur Nginx-Ports öffnen
+# Only open the Nginx ports
 sudo ufw allow 80/tcp comment 'HTTP (redirect)'
 sudo ufw allow 443/tcp comment 'HTTPS (Nginx)'
 
-# Docker-Ports NICHT öffnen (localhost-only)
+# Do NOT open the Docker ports (localhost only)
 ```
 
 ## Defense-in-Depth
 
-### Layer 1: UFW (Host-Level)
+### Layer 1: UFW (host level)
 
 ```bash
 sudo ufw default deny incoming
 sudo ufw allow 443/tcp
 ```
 
-### Layer 2: Service-Binding
+### Layer 2: service binding
 
 ```yaml
 ports:
@@ -177,13 +177,13 @@ ports:
 ### Layer 3: Network Segmentation
 
 ```yaml
-# Separate Docker Networks
+# Separate Docker networks
 networks:
   frontend:
     driver: bridge
   backend:
     driver: bridge
-    internal: true  # Kein Internet-Zugang
+    internal: true  # no internet access
 ```
 
 ### Layer 4: Container Security
@@ -192,17 +192,17 @@ networks:
 services:
   db:
     networks:
-      - backend  # Nur Backend-Network
-    # KEINE ports: Definition (nicht exposed)
+      - backend  # backend network only
+    # NO ports: definition (not exposed)
 ```
 
-## Produktions-Beispiel: NAS mit Docker
+## Production example: file server with Docker
 
-### Architektur
+### Architecture
 
-- **Management Network** (10.0.0.0/24): Admin-Zugriff
-- **Client LAN** (192.168.100.0/24): User-Zugriff
-- **Docker Bridge**: Container-Isolation
+- **Management network** (10.0.0.0/24): admin access
+- **Client LAN** (192.168.100.0/24): user access
+- **Docker bridge**: container isolation
 
 ### docker-compose.yml
 
@@ -224,7 +224,7 @@ services:
   nextcloud:
     image: nextcloud:apache
     ports:
-      - "127.0.0.1:8080:80"  # Nur localhost!
+      - "127.0.0.1:8080:80"  # localhost only!
     networks:
       - backend
     depends_on:
@@ -233,15 +233,15 @@ services:
   portainer:
     image: portainer/portainer-ce
     ports:
-      - "127.0.0.1:9000:9000"   # HTTP - nur localhost
-      - "10.0.0.2:9443:9443"    # HTTPS - nur Management IP
+      - "127.0.0.1:9000:9000"   # HTTP - localhost only
+      - "10.0.0.2:9443:9443"    # HTTPS - management IP only
     networks:
       - management
 
   db:
     image: postgres:15
     networks:
-      - backend  # Kein Port-Expose!
+      - backend  # no port exposed!
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
 
@@ -252,68 +252,68 @@ networks:
   management:
 ```
 
-### UFW Regeln
+### UFW rules
 
 ```bash
-# Web (über Nginx Reverse Proxy)
+# Web (via the Nginx reverse proxy)
 sudo ufw allow 80/tcp comment 'HTTP'
 sudo ufw allow 443/tcp comment 'HTTPS'
 
-# Portainer HTTPS (nur Management)
+# Portainer HTTPS (management only)
 sudo ufw allow from 10.0.0.0/24 to any port 9443 proto tcp comment 'Portainer HTTPS'
 
-# PostgreSQL: Kein UFW nötig (nicht exposed, nur Docker-internal)
+# PostgreSQL: no UFW rule needed (not exposed, Docker-internal only)
 ```
 
 ## Troubleshooting
 
-### Container von außen erreichbar obwohl UFW blockiert?
+### Container reachable from outside although UFW blocks it?
 
 1. **Check Port-Binding**:
    ```bash
    docker port CONTAINER_NAME
    ```
 
-2. **Auf 0.0.0.0 gebunden?** → Problem!
+2. **Bound to 0.0.0.0?** → That is the problem.
    ```
    0.0.0.0:8080 -> 80/tcp
    ```
 
-3. **Fix**: localhost-only binden
+3. **Fix**: bind to localhost only
    ```yaml
    ports:
      - "127.0.0.1:8080:80"
    ```
 
-### DOCKER-USER Chain testen
+### Testing the DOCKER-USER chain
 
 ```bash
-# Aktuelle Regeln
+# Current rules
 sudo iptables -L DOCKER-USER -n -v
 
-# Test-Regel (temporär)
+# Test rule (temporary)
 sudo iptables -I DOCKER-USER -s 192.168.1.100 -j LOG --log-prefix "DOCKER-USER: "
 
-# Log prüfen
+# Inspect the log
 sudo tail -f /var/log/kern.log | grep DOCKER-USER
 ```
 
-### Docker-Chains Reset
+### Resetting the Docker chains
 
-Falls DOCKER-USER beschädigt:
+If DOCKER-USER has been damaged:
 
 ```bash
-# Docker-Service neustarten (erstellt Chains neu)
+# Restart the Docker service (recreates the chains)
 sudo systemctl restart docker
 ```
 
-## Zusammenfassung
+## Summary
 
-| Methode | Komplexität | Sicherheit | Empfohlen |
+| Method | Complexity | Security | Recommended |
 |---------|-------------|------------|-----------|
-| localhost-Binding + Reverse Proxy | Niedrig | Hoch | ✅ Ja |
-| DOCKER-USER Chain | Mittel | Mittel | Für Experten |
-| Host Network Mode | Niedrig | Niedrig | Spezielle Fälle |
-| iptables: false | Hoch | - | ❌ Nein |
+| localhost binding + reverse proxy | Low | High | ✅ Yes |
+| DOCKER-USER chain | Medium | Medium | For experts |
+| Host network mode | Low | Low | Special cases |
+| iptables: false | High | - | ❌ No |
 
-**Best Practice**: Alle Container auf localhost binden und Nginx/Traefik als Reverse Proxy nutzen.
+**Best practice**: bind every container to localhost and put Nginx/Traefik in front as a reverse proxy.

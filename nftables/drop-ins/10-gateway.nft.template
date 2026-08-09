@@ -10,7 +10,7 @@
 # Device Role: Home gateway, Raspberry Pi router, pfSense replacement
 # Deployment: /etc/nftables.conf
 #
-# Based on: Pi 5 Router production config (battle-tested, 189 lines optimized)
+# Based on: a production gateway config (battle-tested, 189 lines optimized)
 #
 # Security Principles (CIS Benchmark Level 1 + 2):
 # - Default deny policy (input + forward chains)

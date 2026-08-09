@@ -6,16 +6,16 @@ https://github.com/fidpa/ubuntu-server-security
 
 # Minimal Web Server UFW Configuration
 
-Minimale UFW-Konfiguration für einen einfachen Web-Server (Nginx/Apache).
+Minimal UFW configuration for a simple web server (Nginx/Apache).
 
-## Use Case
+## Use case
 
-- Statische Website
-- Simple Reverse Proxy
-- Single-Application Server
-- Low-Attack-Surface Setup
+- Static website
+- Simple reverse proxy
+- Single-application server
+- Low-attack-surface setup
 
-## Architektur
+## Architecture
 
 ```
                     ┌──────────────────────────┐
@@ -33,16 +33,16 @@ Internet ──────────►│  UFW (22, 80, 443)      │
 
 ## Features
 
-- ✅ SSH mit Rate-Limiting (Brute-Force-Schutz)
-- ✅ HTTP (Redirect zu HTTPS)
+- ✅ SSH with rate limiting (brute-force protection)
+- ✅ HTTP (redirect to HTTPS)
 - ✅ HTTPS
-- ✅ IPv6 deaktiviert (optional)
-- ✅ Default Deny Policy
+- ✅ IPv6 disabled (optional)
+- ✅ Default deny policy
 - ✅ CIS Benchmark 3.5.1.x compliant
 
-## Regeln
+## Rules
 
-**Total: 6 Regeln (3 Services)**
+**Total: 6 rules (3 services)**
 
 | Port | Protocol | Action | Comment |
 |------|----------|--------|---------|
@@ -52,21 +52,21 @@ Internet ──────────►│  UFW (22, 80, 443)      │
 
 ## Deployment
 
-### 1. UFW Installation & Basis-Setup
+### 1. UFW installation and base setup
 
 ```bash
 # Installation
 sudo apt update && sudo apt install ufw
 
-# Default Policies
+# Default policies
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 ```
 
-### 2. Regeln hinzufügen
+### 2. Add the rules
 
 ```bash
-# SSH mit Rate-Limiting (WICHTIG: VOR ufw enable!)
+# SSH with rate limiting (IMPORTANT: before `ufw enable`!)
 sudo ufw limit 22/tcp comment 'SSH Rate-Limited'
 
 # HTTP/HTTPS
@@ -74,26 +74,26 @@ sudo ufw allow 80/tcp comment 'HTTP'
 sudo ufw allow 443/tcp comment 'HTTPS'
 ```
 
-### 3. IPv6 deaktivieren (optional)
+### 3. Disable IPv6 (optional)
 
 ```bash
-# IPv6 deaktivieren (reduziert Angriffsfläche)
+# Disable IPv6 (reduces the attack surface)
 sudo sed -i 's/^IPV6=yes/IPV6=no/' /etc/default/ufw
 ```
 
-### 4. UFW aktivieren
+### 4. Enable UFW
 
 ```bash
 sudo ufw enable
 ```
 
-### 5. Verifikation
+### 5. Verification
 
 ```bash
-# Status prüfen
+# Check the status
 sudo ufw status verbose
 
-# Erwartete Ausgabe:
+# Expected output:
 # Status: active
 # Logging: on (low)
 # Default: deny (incoming), allow (outgoing), deny (routed)
@@ -105,39 +105,39 @@ sudo ufw status verbose
 # 443/tcp                    ALLOW       Anywhere
 ```
 
-## Varianten
+## Variants
 
-### A) Network-Restricted SSH
+### A) Network-restricted SSH
 
-Für Server im privaten Netzwerk:
+For servers on a private network:
 
 ```bash
-# SSH nur aus Management-Netzwerk
+# SSH from the management network only
 sudo ufw delete limit 22/tcp
 sudo ufw allow from 10.0.0.0/24 to any port 22 proto tcp comment 'SSH Management'
 ```
 
-### B) Mit HTTP/3 (QUIC)
+### B) With HTTP/3 (QUIC)
 
-Für moderne Browser-Unterstützung:
+For modern browser support:
 
 ```bash
-# HTTP/3 über UDP
+# HTTP/3 over UDP
 sudo ufw allow 443/udp comment 'HTTPS QUIC'
 ```
 
-### C) Ohne HTTP (HTTPS-only)
+### C) Without HTTP (HTTPS only)
 
-Falls kein HTTP-Redirect benötigt:
+If no HTTP redirect is needed:
 
 ```bash
-# Nur HTTPS
+# HTTPS only
 sudo ufw delete allow 80/tcp
 ```
 
 ## CIS Compliance
 
-| Control | Status | Verifikation |
+| Control | Status | Verification |
 |---------|--------|--------------|
 | 3.5.1.1 | ✅ | `dpkg -l ufw` |
 | 3.5.1.3 | ✅ | `systemctl is-enabled ufw` |
@@ -146,39 +146,39 @@ sudo ufw delete allow 80/tcp
 ## Logging
 
 ```bash
-# Logging aktivieren (empfohlen: low oder medium)
+# Enable logging (recommended: low or medium)
 sudo ufw logging low
 
-# Log prüfen
+# Inspect the log
 sudo tail -f /var/log/ufw.log
 ```
 
 ## Troubleshooting
 
-### SSH-Verbindung verweigert?
+### SSH connection refused?
 
 ```bash
-# Von anderem Terminal/Konsole:
+# From another terminal/console:
 sudo ufw status numbered
-# SSH-Regel vorhanden?
+# Does the SSH rule exist?
 
-# Falls nicht:
+# If not:
 sudo ufw allow 22/tcp
 ```
 
-### Website nicht erreichbar?
+### Website unreachable?
 
 ```bash
-# Port 80/443 blockiert?
+# Are ports 80/443 blocked?
 sudo grep "UFW BLOCK" /var/log/ufw.log | grep "DPT=80\|DPT=443"
 
-# Nginx läuft?
+# Is Nginx running?
 systemctl status nginx
 ss -tuln | grep -E ":80|:443"
 ```
 
-## Nächste Schritte
+## Next steps
 
-- [SETUP.md](../docs/SETUP.md) - Detaillierte Anleitung
-- [TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md) - Problemlösungen
-- [../drop-ins/](../drop-ins/) - Zusätzliche Regeln
+- [SETUP.md](../docs/SETUP.md) - Detailed guide
+- [TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md) - Problem solving
+- [../drop-ins/](../drop-ins/) - Additional rules

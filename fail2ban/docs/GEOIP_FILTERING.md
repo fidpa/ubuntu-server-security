@@ -41,7 +41,10 @@ geoiplookup 8.8.8.8
 geoiplookup 8.8.8.8       # US (Google DNS)
 geoiplookup 9.9.9.9       # US (Quad9 DNS)
 geoiplookup 1.1.1.1       # AU (Cloudflare)
-geoiplookup 193.99.144.80 # DE (Germany - should match whitelist)
+
+# For a positive test, look up any address that resolves to a country on your
+# whitelist -- e.g. the public IP of a well-known site in that country:
+#   geoiplookup "$(dig +short <site-in-your-country> | head -1)"
 ```
 
 ## Installation
@@ -64,8 +67,8 @@ ls -la /usr/local/bin/geoip-whitelist.sh
 /usr/local/bin/geoip-whitelist.sh 8.8.8.8
 echo $?  # Expected: 1
 
-# Test with German IP (should ALLOW - exit 0)
-/usr/local/bin/geoip-whitelist.sh 193.99.144.80
+# Test with an IP from a whitelisted country (should ALLOW - exit 0)
+/usr/local/bin/geoip-whitelist.sh "$(dig +short <site-in-your-country> | head -1)"
 echo $?  # Expected: 0
 
 # Test with private IP (should ALLOW - exit 0)

@@ -22,8 +22,7 @@
 #   - whois (optional, for IP context)
 #   - .env.secrets with TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
 #
-# Version: 2.0.0 (Device-agnostic)
-# Original: Pi 5 Router fail2ban integration
+# Version: 2.0.1 (Device-agnostic)
 
 set -uo pipefail
 
@@ -65,16 +64,17 @@ fi
 # Functions
 # ============================================
 
-# Device/Host detection for alert prefix
+# Device/Host detection for alert prefix.
+# Default is the short hostname. To show a friendlier name per host, add cases
+# below (e.g. `gateway) echo "Edge-Gateway" ;;`) or set ALERT_PREFIX in the
+# secrets file to override detection entirely.
 get_alert_prefix() {
     case "$(hostname -s)" in
-        pi-router) echo "Pi5-Router" ;;
-        nas)       echo "NAS-Server" ;;
-        *)         echo "$(hostname -s)" ;;
+        *) echo "$(hostname -s)" ;;
     esac
 }
 
-readonly ALERT_PREFIX="$(get_alert_prefix)"
+readonly ALERT_PREFIX="${ALERT_PREFIX:-$(get_alert_prefix)}"
 readonly HOST_IP=$(hostname -I | awk '{print $1}' || echo "unknown")
 readonly HOST_NAME=$(hostname || echo "unknown")
 

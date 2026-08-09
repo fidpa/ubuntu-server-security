@@ -142,7 +142,7 @@ sudo scripts/deploy-nftables.sh /etc/nftables.conf
 
 **Use Case**: Force all DNS queries through VPN (no DNS leaks)
 
-**Based on**: Pi 5 Router production pattern (24.12.2025)
+**Based on**: a production gateway pattern (December 2025)
 
 ### Server Setup
 
@@ -185,7 +185,7 @@ PostDown = resolvectl revert wg0
 
 [Peer]
 PublicKey = <SERVER_PUBLIC_KEY>
-Endpoint = home.pi-router.de:51820
+Endpoint = vpn.example.com:51820
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 ```

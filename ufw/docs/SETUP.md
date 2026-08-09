@@ -6,7 +6,7 @@ https://github.com/fidpa/ubuntu-server-security
 
 # UFW Setup Guide
 
-## TL;DR (30 Sekunden)
+## TL;DR (30 seconds)
 
 ```bash
 sudo apt install ufw
@@ -17,186 +17,186 @@ sudo ufw enable
 sudo ufw status verbose
 ```
 
-## Voraussetzungen
+## Requirements
 
-- Ubuntu 22.04 LTS oder 24.04 LTS
-- Root/sudo Zugriff
-- SSH-Zugang (VOR Aktivierung SSH-Regel erstellen!)
+- Ubuntu 22.04 LTS or 24.04 LTS
+- Root/sudo access
+- SSH access (create the SSH rule BEFORE enabling UFW!)
 
-**Wichtig**: `iptables-persistent` darf NICHT installiert sein (Konflikt mit UFW):
+**Important**: `iptables-persistent` must NOT be installed (it conflicts with UFW):
 
 ```bash
 dpkg -l | grep iptables-persistent
-# Falls installiert:
+# If installed:
 sudo apt purge iptables-persistent
 ```
 
 ## Installation
 
-### 1. UFW installieren
+### 1. Install UFW
 
 ```bash
 sudo apt update
 sudo apt install ufw
 ```
 
-### 2. Default Policies setzen
+### 2. Set default policies
 
 ```bash
-# Eingehende Verbindungen: DENY (alles blockieren)
+# Incoming connections: DENY (block everything)
 sudo ufw default deny incoming
 
-# Ausgehende Verbindungen: ALLOW (alles erlauben)
+# Outgoing connections: ALLOW (permit everything)
 sudo ufw default allow outgoing
 
-# Routed Traffic (nur für Router/Gateways relevant)
+# Routed traffic (only relevant for routers/gateways)
 sudo ufw default deny routed
 ```
 
-### 3. SSH-Regel (KRITISCH!)
+### 3. SSH rule (CRITICAL!)
 
-**Vor Aktivierung IMMER SSH-Zugang sichern!**
+**Always secure SSH access before enabling UFW.**
 
 ```bash
-# Option A: Rate-Limited (empfohlen)
+# Option A: Rate-limited (recommended)
 sudo ufw limit 22/tcp comment 'SSH Rate-Limited'
 
-# Option B: Standard Allow
+# Option B: Plain allow
 sudo ufw allow 22/tcp comment 'SSH'
 
-# Option C: Network-restricted (sicherste)
+# Option C: Network-restricted (most secure)
 sudo ufw allow from 10.0.0.0/24 to any port 22 proto tcp comment 'SSH Management'
 ```
 
-### 4. UFW aktivieren
+### 4. Enable UFW
 
 ```bash
 sudo ufw enable
-# Bestätigung mit 'y'
+# Confirm with 'y'
 ```
 
-### 5. Status prüfen
+### 5. Check status
 
 ```bash
-# Übersicht
+# Overview
 sudo ufw status verbose
 
-# Mit Regel-Nummern (für Bearbeitung)
+# With rule numbers (for editing)
 sudo ufw status numbered
 ```
 
-## Basis-Konfiguration
+## Base configuration
 
-### Web Server (HTTP/HTTPS)
+### Web server (HTTP/HTTPS)
 
 ```bash
 sudo ufw allow 80/tcp comment 'HTTP'
 sudo ufw allow 443/tcp comment 'HTTPS'
 ```
 
-### Samba (File-Sharing)
+### Samba (file sharing)
 
 ```bash
 sudo ufw allow from 10.0.0.0/24 to any port 139,445 proto tcp comment 'Samba Management'
 sudo ufw allow from 192.168.100.0/24 to any port 139,445 proto tcp comment 'Samba LAN'
 ```
 
-### Monitoring Ports
+### Monitoring ports
 
 ```bash
-# Nur aus Management-Netzwerk
+# Management network only
 sudo ufw allow from 10.0.0.0/24 to any port 9090 proto tcp comment 'Prometheus'
 sudo ufw allow from 10.0.0.0/24 to any port 3000 proto tcp comment 'Grafana'
 ```
 
-## Drop-in Integration
+## Drop-in integration
 
-Drop-ins sind vorgefertigte Regel-Sets für spezifische Use Cases.
+Drop-ins are pre-built rule sets for specific use cases.
 
 ```bash
-# 1. Drop-in auswählen
+# 1. Pick a drop-in
 cat drop-ins/10-webserver.rules
 
-# 2. Regeln anwenden
+# 2. Apply the rules
 source drop-ins/10-webserver.rules
-# Oder einzeln ausführen:
+# Or run them individually:
 sudo ufw allow 80/tcp comment 'HTTP'
 sudo ufw allow 443/tcp comment 'HTTPS'
 ```
 
-Verfügbare Drop-ins: [drop-ins/README.md](../drop-ins/README.md)
+Available drop-ins: [drop-ins/README.md](../drop-ins/README.md)
 
-## IPv6 Deaktivierung (optional)
+## Disabling IPv6 (optional)
 
-Falls IPv6 nicht benötigt wird (CIS 3.1.1):
+If IPv6 is not needed (CIS 3.1.1):
 
 ```bash
-# /etc/default/ufw editieren
+# Edit /etc/default/ufw
 sudo nano /etc/default/ufw
 
-# Ändern:
+# Change to:
 IPV6=no
 
-# UFW neu laden
+# Reload UFW
 sudo ufw reload
 ```
 
-**Vorteil**: Weniger Regeln, kleinere Angriffsfläche.
+**Benefit**: Fewer rules, smaller attack surface.
 
-## Logging konfigurieren
+## Configuring logging
 
 ```bash
-# Logging Level setzen (empfohlen: medium)
+# Set logging level (recommended: medium)
 sudo ufw logging medium
 
-# Log-Datei prüfen
+# Inspect the log file
 sudo tail -f /var/log/ufw.log
 ```
 
 | Level | Description |
 |-------|-------------|
-| off | Kein Logging |
-| low | Blocked Packets |
-| medium | + Invalid + New Connections |
-| high | + Rate-Limited Packets |
-| full | Alles |
+| off | No logging |
+| low | Blocked packets |
+| medium | + Invalid + new connections |
+| high | + Rate-limited packets |
+| full | Everything |
 
-## Verifikation
+## Verification
 
-### CIS Benchmark Checks
+### CIS Benchmark checks
 
 ```bash
-# 3.5.1.1 - UFW installiert
+# 3.5.1.1 - UFW installed
 dpkg -l | grep ufw
 
-# 3.5.1.3 - Service aktiv
+# 3.5.1.3 - Service active
 systemctl is-enabled ufw
 systemctl is-active ufw
 
-# 3.5.1.7 - Default Deny
+# 3.5.1.7 - Default deny
 sudo ufw status verbose | grep -E "^Default:"
 ```
 
-### Regel-Validierung
+### Rule validation
 
 ```bash
-# Alle Regeln anzeigen
+# Show all rules
 sudo ufw status numbered
 
-# Regel testen (von anderem Host)
+# Test a rule (from another host)
 nc -zv SERVER_IP 22
 nc -zv SERVER_IP 80
 ```
 
-## Regeln verwalten
+## Managing rules
 
-### Regel hinzufügen
+### Add a rule
 
 ```bash
-# Mit Port
+# By port
 sudo ufw allow 8080/tcp comment 'Custom Service'
 
-# Mit Service-Name
+# By service name
 sudo ufw allow ssh
 sudo ufw allow http
 
@@ -204,78 +204,78 @@ sudo ufw allow http
 sudo ufw allow from 192.168.1.0/24 to any port 3306
 ```
 
-### Regel löschen
+### Delete a rule
 
 ```bash
-# Nach Nummer
+# By number
 sudo ufw status numbered
 sudo ufw delete 5
 
-# Nach Regel
+# By rule
 sudo ufw delete allow 8080/tcp
 ```
 
-### Regel einfügen (an Position)
+### Insert a rule (at a position)
 
 ```bash
-# An Position 1 einfügen
+# Insert at position 1
 sudo ufw insert 1 deny from 10.0.0.50 to any
 ```
 
-## Troubleshooting Quick Links
+## Troubleshooting quick links
 
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Häufige Probleme
-- [DOCKER_NETWORKING.md](DOCKER_NETWORKING.md) - Docker/UFW Issues
-- [CIS_CONTROLS.md](CIS_CONTROLS.md) - Compliance-Checks
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common problems
+- [DOCKER_NETWORKING.md](DOCKER_NETWORKING.md) - Docker/UFW issues
+- [CIS_CONTROLS.md](CIS_CONTROLS.md) - Compliance checks
 
-## Automatisierung
+## Automation
 
-### systemd Service
+### systemd service
 
-UFW läuft als systemd Service:
+UFW runs as a systemd service:
 
 ```bash
 # Status
 sudo systemctl status ufw
 
-# Service-File prüfen
+# Inspect the unit file
 systemctl cat ufw
 ```
 
-### NOPASSWD für Status-Checks
+### NOPASSWD for status checks
 
-Für automatisierte Monitoring-Scripts:
+For automated monitoring scripts:
 
 ```bash
 # /etc/sudoers.d/ufw-monitoring
-marc ALL=(ALL) NOPASSWD: /usr/sbin/ufw status
-marc ALL=(ALL) NOPASSWD: /usr/sbin/ufw status verbose
-marc ALL=(ALL) NOPASSWD: /usr/sbin/ufw status numbered
+admin ALL=(ALL) NOPASSWD: /usr/sbin/ufw status
+admin ALL=(ALL) NOPASSWD: /usr/sbin/ufw status verbose
+admin ALL=(ALL) NOPASSWD: /usr/sbin/ufw status numbered
 ```
 
 Details: [../scripts/check-ufw-status.sh](../scripts/check-ufw-status.sh)
 
-## Backup & Recovery
+## Backup & recovery
 
-### Regeln exportieren
+### Export rules
 
 ```bash
-# UFW Konfiguration sichern
+# Back up the UFW configuration
 sudo cp -r /etc/ufw /etc/ufw.backup.$(date +%Y%m%d)
 sudo cp /etc/default/ufw /etc/default/ufw.backup.$(date +%Y%m%d)
 ```
 
-### Regeln importieren
+### Import rules
 
 ```bash
-# Aus Backup wiederherstellen
+# Restore from backup
 sudo cp -r /etc/ufw.backup.YYYYMMDD/* /etc/ufw/
 sudo ufw reload
 ```
 
-## Nächste Schritte
+## Next steps
 
-1. [CIS_CONTROLS.md](CIS_CONTROLS.md) - Compliance sicherstellen
-2. [DOCKER_NETWORKING.md](DOCKER_NETWORKING.md) - Docker-Integration
-3. [../drop-ins/](../drop-ins/) - Passende Templates wählen
-4. [../examples/](../examples/) - Produktionsbeispiele
+1. [CIS_CONTROLS.md](CIS_CONTROLS.md) - Ensure compliance
+2. [DOCKER_NETWORKING.md](DOCKER_NETWORKING.md) - Docker integration
+3. [../drop-ins/](../drop-ins/) - Choose matching templates
+4. [../examples/](../examples/) - Production examples

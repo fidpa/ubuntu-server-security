@@ -1,6 +1,6 @@
 #!/usr/sbin/nft -f
 # ═══════════════════════════════════════════════════════════════════════════
-# Production Gateway Example - Based on Pi 5 Router (189 lines optimized)
+# Production Gateway Example (189 lines optimized)
 # ═══════════════════════════════════════════════════════════════════════════
 # Copyright (c) 2026 Marc Allgeier (fidpa)
 # SPDX-License-Identifier: MIT
@@ -10,7 +10,7 @@
 # Features: NAT, routing, VPN, Docker networking, rate-limiting
 # Deployment: Copy to /etc/nftables.conf and customize all variables
 #
-# Based on: Pi 5 Router production config (battle-tested since 2024)
+# Based on: a production gateway config (battle-tested since 2024)
 # Incidents resolved: Negation bug, coturn, optimization
 # ═══════════════════════════════════════════════════════════════════════════
 

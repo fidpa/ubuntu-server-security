@@ -161,10 +161,9 @@ Edit `/etc/fail2ban/action.d/telegram-send.sh`:
 # Customize device detection (line ~80)
 get_alert_prefix() {
     case "$(hostname -s)" in
-        pi-router) echo "Pi5-Router" ;;
-        nas)       echo "NAS-Server" ;;
-        web01)     echo "Web-Server-01" ;;  # Add your custom prefix
-        *)         echo "$(hostname -s)" ;;
+        web01)   echo "Web-Server-01" ;;  # Add your custom prefix
+        db01)    echo "Database-01" ;;
+        *)       echo "$(hostname -s)" ;;
     esac
 }
 ```

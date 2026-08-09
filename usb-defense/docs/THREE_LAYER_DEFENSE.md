@@ -262,7 +262,7 @@ auid=1000 uid=0 gid=0 comm="modprobe" exe="/usr/sbin/modprobe"
 
 # Email alert (within 10 minutes):
 Subject: USB Activity Detected - hostname
-User marc (auid=1000) executed /sbin/modprobe with args: usb-storage
+User admin (auid=1000) executed /sbin/modprobe with args: usb-storage
 ```
 
 **Scenario 2: Attacker deletes blacklist**

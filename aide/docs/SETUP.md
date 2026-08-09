@@ -325,7 +325,7 @@ sudo rm /etc/test-aide-file
 ## Next Steps
 
 - **Configure excludes**: Edit `/etc/aide/aide.conf.d/99-custom-excludes.conf`
-- **Setup monitoring**: See [PROMETHEUS_INTEGRATION.md](PROMETHEUS_INTEGRATION.md)
+- **Setup monitoring**: See [PROMETHEUS_INTEGRATION.md](../../docs/PROMETHEUS_INTEGRATION.md)
 - **Reduce false-positives**: See [FALSE_POSITIVE_REDUCTION.md](FALSE_POSITIVE_REDUCTION.md)
 - **Troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - **Best practices**: See [BEST_PRACTICES.md](BEST_PRACTICES.md)

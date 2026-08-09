@@ -4,22 +4,22 @@ SPDX-License-Identifier: MIT
 https://github.com/fidpa/ubuntu-server-security
 -->
 
-# NAS Docker Stack UFW Configuration
+# File Server Docker Stack UFW Configuration
 
-Produktions-erprobte UFW-Konfiguration für einen NAS-Server mit Docker-Stack.
+Production-tested UFW configuration for a file server running a Docker stack.
 
-## Use Case
+## Use case
 
-- NAS (Network Attached Storage)
-- Docker-basierte Services (Nextcloud, Grafana, Portainer, etc.)
-- Multi-Network Setup (Management + Client LAN)
-- Defense-in-Depth Architektur
+- NAS (network attached storage)
+- Docker-based services (Nextcloud, Grafana, Portainer, etc.)
+- Multi-network setup (management + client LAN)
+- Defense-in-depth architecture
 
-## Architektur
+## Architecture
 
 ```
                     ┌────────────────────────────────────────────┐
-                    │            NAS Server                       │
+                    │           File Server                       │
                     │                                             │
 Management ────────►│  mgmt0 (10.0.0.2)                          │
 (10.0.0.0/24)       │    ├── SSH (22) LIMIT                      │
@@ -41,24 +41,24 @@ Client LAN ────────►│  lan0 (192.168.100.2)                 
 
 ## Features
 
-- ✅ Network Segmentation (Management vs. Client LAN)
-- ✅ SSH Rate-Limiting
-- ✅ Samba File-Sharing
-- ✅ Docker Services (localhost-bound, Reverse Proxy)
-- ✅ Monitoring Stack (Prometheus, Grafana)
-- ✅ IPv6 deaktiviert
+- ✅ Network segmentation (management vs. client LAN)
+- ✅ SSH rate limiting
+- ✅ Samba file sharing
+- ✅ Docker services (localhost-bound, behind a reverse proxy)
+- ✅ Monitoring stack (Prometheus, Grafana)
+- ✅ IPv6 disabled
 - ✅ CIS Benchmark 100% compliant
 
-## Netzwerk-Design
+## Network design
 
-| Netzwerk | CIDR | Zweck | Interface |
-|----------|------|-------|-----------|
-| Management | 10.0.0.0/24 | Admin, SSH, Monitoring | mgmt0 |
-| Client LAN | 192.168.100.0/24 | User-Services, Web | lan0 |
+| Network | CIDR | Purpose | Interface |
+|---------|------|---------|-----------|
+| Management | 10.0.0.0/24 | Admin, SSH, monitoring | mgmt0 |
+| Client LAN | 192.168.100.0/24 | User services, web | lan0 |
 
-## Regeln
+## Rules
 
-**Total: 13 Regeln**
+**Total: 13 rules**
 
 | # | Port | Protocol | Source | Comment |
 |---|------|----------|--------|---------|
@@ -109,17 +109,17 @@ sudo ufw allow 443/tcp comment 'HTTPS'
 ### 4. Samba (File-Sharing)
 
 ```bash
-# Management Network
+# Management network
 sudo ufw allow from 10.0.0.0/24 to any port 139,445 proto tcp comment 'Samba Management'
 
 # Client LAN
 sudo ufw allow from 192.168.100.0/24 to any port 139,445 proto tcp comment 'Samba LAN'
 ```
 
-### 5. Nextcloud (nur von Router)
+### 5. Nextcloud (from the router only)
 
 ```bash
-# Nextcloud lauscht auf 0.0.0.0:8080, aber nur Router (Reverse Proxy) darf zugreifen
+# Nextcloud listens on 0.0.0.0:8080, but only the router (reverse proxy) may reach it
 sudo ufw allow from 192.168.100.1 to any port 8080 proto tcp comment 'Nextcloud from Router'
 ```
 
@@ -130,7 +130,7 @@ sudo ufw allow from 192.168.100.1 to any port 8080 proto tcp comment 'Nextcloud 
 sudo ufw allow from 10.0.0.0/24 to any port 9000 proto tcp comment 'Portainer HTTP'
 sudo ufw allow from 10.0.0.0/24 to any port 9443 proto tcp comment 'Portainer HTTPS'
 
-# Optional: HTTPS auch aus LAN
+# Optional: HTTPS from the LAN as well
 sudo ufw allow from 192.168.100.0/24 to any port 9443 proto tcp comment 'Portainer HTTPS LAN'
 ```
 
@@ -160,18 +160,18 @@ sudo ufw logging medium
 sudo ufw enable
 ```
 
-## Docker-Integration
+## Docker integration
 
-### Service-Binding Pattern
+### Service binding pattern
 
-Docker-Services auf localhost binden:
+Bind the Docker services to localhost:
 
 ```yaml
 # docker-compose.yml
 services:
   nextcloud:
     ports:
-      - "127.0.0.1:8080:80"  # Nur localhost
+      - "127.0.0.1:8080:80"  # localhost only
 
   grafana:
     ports:
@@ -200,22 +200,22 @@ server {
 }
 ```
 
-## Verifikation
+## Verification
 
 ```bash
-# Status prüfen
+# Check the status
 sudo ufw status numbered
 
 # CIS Compliance
 ./scripts/check-ufw-status.sh --cis
 
-# Connectivity Test (von Client)
+# Connectivity test (from a client)
 nc -zv 10.0.0.2 22    # SSH
 nc -zv 10.0.0.2 445   # Samba
 nc -zv 10.0.0.2 9443  # Portainer
 ```
 
-## Defense-in-Depth Layers
+## Defense-in-depth layers
 
 | Layer | Implementation | Status |
 |-------|---------------|--------|
@@ -227,32 +227,32 @@ nc -zv 10.0.0.2 9443  # Portainer
 
 ## Troubleshooting
 
-### Samba nicht erreichbar?
+### Samba unreachable?
 
 ```bash
-# Ports offen?
+# Are the ports open?
 sudo ufw status | grep 445
 
-# Samba läuft?
+# Is Samba running?
 systemctl status smbd
 
-# Von Client testen
+# Test from a client
 smbclient -L //10.0.0.2 -N
 ```
 
-### Docker-Service von außen erreichbar (obwohl nicht gewollt)?
+### Docker service reachable from outside (although it should not be)?
 
-Docker umgeht UFW! Siehe [DOCKER_NETWORKING.md](../docs/DOCKER_NETWORKING.md)
+Docker bypasses UFW. See [DOCKER_NETWORKING.md](../docs/DOCKER_NETWORKING.md)
 
 ```bash
-# Check: Auf welcher IP lauscht der Container?
+# Check: which address is the container listening on?
 docker port CONTAINER_NAME
-# Falls 0.0.0.0:PORT → Problem!
+# If it says 0.0.0.0:PORT, that is the problem.
 # Fix: 127.0.0.1:PORT in docker-compose.yml
 ```
 
-## Referenzen
+## References
 
-- [DOCKER_NETWORKING.md](../docs/DOCKER_NETWORKING.md) - Docker/UFW Interaktion
-- [CIS_CONTROLS.md](../docs/CIS_CONTROLS.md) - Compliance Checks
-- [../drop-ins/](../drop-ins/) - Modulare Templates
+- [DOCKER_NETWORKING.md](../docs/DOCKER_NETWORKING.md) - Docker/UFW interaction
+- [CIS_CONTROLS.md](../docs/CIS_CONTROLS.md) - Compliance checks
+- [../drop-ins/](../drop-ins/) - Modular templates

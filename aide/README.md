@@ -33,8 +33,8 @@ sudo aideinit
 |----------|-------------|
 | [SETUP.md](docs/SETUP.md) | Installation and configuration guide |
 | [FALSE_POSITIVE_REDUCTION.md](docs/FALSE_POSITIVE_REDUCTION.md) | Production lessons and tuning strategies |
-| [PROMETHEUS_INTEGRATION.md](docs/PROMETHEUS_INTEGRATION.md) | Metrics exporters and Grafana dashboards |
-| [FAILURE_ALERTING.md](docs/FAILURE_ALERTING.md) | Real-time Telegram alerts for AIDE failures |
+| [PROMETHEUS_INTEGRATION.md](../docs/PROMETHEUS_INTEGRATION.md) | Metrics exporters and Grafana dashboards |
+| [FAILURE_ALERTING.md](../docs/FAILURE_ALERTING.md) | Real-time Telegram alerts for AIDE failures |
 | [BOOT_RESILIENCY.md](docs/BOOT_RESILIENCY.md) | Boot-time behavior and recovery |
 | [MONITORING_AIDE_ACCESS.md](docs/MONITORING_AIDE_ACCESS.md) | Permission monitoring and _aide group setup |
 | [AIDE_BINARY_VALIDATION.md](docs/AIDE_BINARY_VALIDATION.md) | Immutable flag validation |

@@ -13,7 +13,7 @@ set -uo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly VERSION="1.0.0"
+readonly VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo "unknown")"
 
 # Colors for output
 readonly RED='\033[0;31m'

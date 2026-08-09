@@ -8,7 +8,7 @@ https://github.com/fidpa/ubuntu-server-security
 
 CIS Ubuntu 24.04 LTS Benchmark v1.0.0 - Section 3.5 (Host Based Firewall)
 
-## Übersicht
+## Overview
 
 | Control | Description | Level | Status |
 |---------|-------------|-------|--------|
@@ -20,7 +20,7 @@ CIS Ubuntu 24.04 LTS Benchmark v1.0.0 - Section 3.5 (Host Based Firewall)
 | 3.5.1.6 | Ensure firewall rules for open ports | L1 | ✅ |
 | 3.5.1.7 | Ensure default deny policy | L1 | ✅ |
 
-**Zusätzlich empfohlen**:
+**Additionally recommended**:
 
 | Control | Description | Level | Status |
 |---------|-------------|-------|--------|
@@ -28,14 +28,14 @@ CIS Ubuntu 24.04 LTS Benchmark v1.0.0 - Section 3.5 (Host Based Firewall)
 
 ## Control Details
 
-### 3.5.1.1 - UFW installiert
+### 3.5.1.1 - UFW installed
 
-**Beschreibung**: UFW (Uncomplicated Firewall) muss installiert sein.
+**Description**: UFW (Uncomplicated Firewall) must be installed.
 
 **Audit**:
 ```bash
 dpkg -l | grep ufw
-# Erwartet: ii  ufw  ...
+# Expected: ii  ufw  ...
 ```
 
 **Remediation**:
@@ -44,14 +44,14 @@ sudo apt update
 sudo apt install ufw
 ```
 
-### 3.5.1.2 - iptables-persistent NICHT installiert
+### 3.5.1.2 - iptables-persistent NOT installed
 
-**Beschreibung**: `iptables-persistent` konfligiert mit UFW und darf nicht installiert sein.
+**Description**: `iptables-persistent` conflicts with UFW and must not be installed.
 
 **Audit**:
 ```bash
 dpkg -l | grep iptables-persistent
-# Erwartet: Keine Ausgabe
+# Expected: no output
 ```
 
 **Remediation**:
@@ -59,22 +59,22 @@ dpkg -l | grep iptables-persistent
 sudo apt purge iptables-persistent
 ```
 
-**Rationale**: Beide Tools versuchen iptables-Regeln zu verwalten, was zu Konflikten führt.
+**Rationale**: Both tools try to manage iptables rules, which leads to conflicts.
 
-### 3.5.1.3 - UFW Service enabled
+### 3.5.1.3 - UFW service enabled
 
-**Beschreibung**: Der UFW-Service muss aktiviert und laufend sein.
+**Description**: The UFW service must be enabled and running.
 
 **Audit**:
 ```bash
 systemctl is-enabled ufw
-# Erwartet: enabled
+# Expected: enabled
 
 systemctl is-active ufw
-# Erwartet: active
+# Expected: active
 
 sudo ufw status
-# Erwartet: Status: active
+# Expected: Status: active
 ```
 
 **Remediation**:
@@ -83,32 +83,32 @@ sudo systemctl enable ufw
 sudo ufw enable
 ```
 
-### 3.5.1.4 - Loopback Traffic konfiguriert
+### 3.5.1.4 - Loopback traffic configured
 
-**Beschreibung**: Loopback-Interface (localhost) Traffic muss erlaubt sein.
+**Description**: Traffic on the loopback interface (localhost) must be allowed.
 
 **Audit**:
 ```bash
 sudo ufw status verbose
-# Prüfen: Loopback in/out erlaubt
+# Check: loopback in/out allowed
 ```
 
-**Hinweis**: UFW konfiguriert Loopback automatisch korrekt bei Aktivierung.
+**Note**: UFW configures loopback correctly on its own when enabled.
 
-**Manuelle Verifikation** (falls nötig):
+**Manual verification** (if needed):
 ```bash
 sudo iptables -L INPUT -v -n | grep lo
 sudo iptables -L OUTPUT -v -n | grep lo
 ```
 
-### 3.5.1.5 - Outbound Connections konfiguriert
+### 3.5.1.5 - Outbound connections configured
 
-**Beschreibung**: Ausgehende Verbindungen müssen explizit erlaubt oder blockiert sein.
+**Description**: Outbound connections must be explicitly allowed or blocked.
 
 **Audit**:
 ```bash
 sudo ufw status verbose | grep "Default:"
-# Erwartet: Default: deny (incoming), allow (outgoing), ...
+# Expected: Default: deny (incoming), allow (outgoing), ...
 ```
 
 **Remediation**:
@@ -116,7 +116,7 @@ sudo ufw status verbose | grep "Default:"
 sudo ufw default allow outgoing
 ```
 
-**Alternative** (restriktiver, Level 2):
+**Alternative** (more restrictive, Level 2):
 ```bash
 sudo ufw default deny outgoing
 sudo ufw allow out 53/udp  # DNS
@@ -125,36 +125,36 @@ sudo ufw allow out 443/tcp # HTTPS
 sudo ufw allow out 123/udp # NTP
 ```
 
-### 3.5.1.6 - Firewall Rules für Open Ports
+### 3.5.1.6 - Firewall rules for open ports
 
-**Beschreibung**: Jeder offene Port muss eine entsprechende Firewall-Regel haben.
+**Description**: Every open port must have a matching firewall rule.
 
 **Audit**:
 ```bash
-# 1. Offene Ports identifizieren
+# 1. Identify open ports
 ss -tuln | grep LISTEN
 
-# 2. UFW-Regeln prüfen
+# 2. Inspect UFW rules
 sudo ufw status numbered
 
-# 3. Vergleichen: Jeder LISTEN-Port sollte in UFW erlaubt sein
+# 3. Compare: every LISTEN port should be allowed in UFW
 ```
 
-**Remediation**: Für jeden benötigten Port eine Regel erstellen:
+**Remediation**: Create a rule for every port you need:
 ```bash
 sudo ufw allow <PORT>/tcp comment 'Service Name'
 ```
 
-**Best Practice**: Nur notwendige Ports öffnen (Principle of Least Privilege).
+**Best practice**: Only open the ports you need (principle of least privilege).
 
-### 3.5.1.7 - Default Deny Policy
+### 3.5.1.7 - Default deny policy
 
-**Beschreibung**: Die Standard-Policy muss eingehende Verbindungen blockieren.
+**Description**: The default policy must block incoming connections.
 
 **Audit**:
 ```bash
 sudo ufw status verbose | grep "Default:"
-# Erwartet: Default: deny (incoming), ...
+# Expected: Default: deny (incoming), ...
 ```
 
 **Remediation**:
@@ -162,30 +162,30 @@ sudo ufw status verbose | grep "Default:"
 sudo ufw default deny incoming
 ```
 
-## Zusätzliche Empfehlungen
+## Additional recommendations
 
-### 3.1.1 - IPv6 deaktivieren (optional)
+### 3.1.1 - Disable IPv6 (optional)
 
-**Beschreibung**: Wenn IPv6 nicht verwendet wird, sollte es deaktiviert werden.
+**Description**: If IPv6 is not in use, it should be disabled.
 
 **Audit**:
 ```bash
 grep "^IPV6" /etc/default/ufw
-# Prüfen: IPV6=no
+# Check: IPV6=no
 ```
 
 **Remediation**:
 ```bash
-# /etc/default/ufw editieren
+# Edit /etc/default/ufw
 sudo sed -i 's/^IPV6=yes/IPV6=no/' /etc/default/ufw
 sudo ufw reload
 ```
 
-**Vorteil**: Reduziert die Angriffsfläche und die Anzahl der UFW-Regeln.
+**Benefit**: Reduces the attack surface and the number of UFW rules.
 
-## Automatisierte Compliance-Prüfung
+## Automated compliance check
 
-### Quick Check Script
+### Quick check script
 
 ```bash
 #!/bin/bash
@@ -210,11 +210,11 @@ echo -n "3.5.1.7 Default deny: "
 sudo ufw status verbose | grep -q "deny (incoming)" && echo "PASS" || echo "FAIL"
 ```
 
-### Vollständiger Check
+### Full check
 
-Nutze das mitgelieferte Script: [../scripts/check-ufw-status.sh](../scripts/check-ufw-status.sh)
+Use the bundled script: [../scripts/check-ufw-status.sh](../scripts/check-ufw-status.sh)
 
-## Compliance-Matrix
+## Compliance matrix
 
 | Control | Audit Command | Expected Result |
 |---------|--------------|-----------------|
@@ -225,9 +225,9 @@ Nutze das mitgelieferte Script: [../scripts/check-ufw-status.sh](../scripts/chec
 | 3.5.1.5 | `ufw status verbose` | allow (outgoing) |
 | 3.5.1.7 | `ufw status verbose` | deny (incoming) |
 
-## Häufige Compliance-Fehler
+## Common compliance failures
 
-### Problem: iptables-persistent installiert
+### Problem: iptables-persistent installed
 
 ```bash
 # Symptom
@@ -239,7 +239,7 @@ sudo apt purge iptables-persistent
 sudo ufw reload
 ```
 
-### Problem: Default Policy nicht deny
+### Problem: default policy is not deny
 
 ```bash
 # Symptom
@@ -250,7 +250,7 @@ Default: allow (incoming), ...
 sudo ufw default deny incoming
 ```
 
-### Problem: Service nicht aktiv
+### Problem: service not active
 
 ```bash
 # Symptom
@@ -261,7 +261,7 @@ inactive
 sudo ufw enable
 ```
 
-## Referenzen
+## References
 
 - [CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0](https://www.cisecurity.org/benchmark/ubuntu_linux)
 - [UFW Official Documentation](https://help.ubuntu.com/community/UFW)

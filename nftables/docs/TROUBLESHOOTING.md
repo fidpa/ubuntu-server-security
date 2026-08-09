@@ -442,7 +442,7 @@ Negation (`!=`) with sets doesn't work as expected
 
 nftables limitation: negation (`!=`) doesn't work with interval sets
 
-**Example from Pi 5 Router Incident (NFTABLES_INTERVAL_SET_NEGATION_BUG_221225.md)**:
+**Example from a production gateway incident (December 2025)**:
 
 ```nft
 # ❌ BROKEN - Doesn't work!
