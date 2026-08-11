@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ansible playbook support
 - Docker security hardening module
 
+## [1.1.3] - 2026-08-11
+
+### Fixed
+- Restored the missing executable bit on 14 scripts across `aide/`,
+  `apparmor/`, `auditd/`, `boot-security/`, `kernel-hardening/`, `nftables/`,
+  `ssh-hardening/`, and `ufw/`. They were checked in as `100644` and could not
+  be run directly (`./script.sh`); only `bash script.sh` worked. Content is
+  unchanged, only the file mode.
+
 ## [1.1.2] - 2026-08-09
 
 Housekeeping release. No hardening rule, default, or access path changes -- every
@@ -171,13 +180,15 @@ version instead of `1.0.0`; if any tooling parsed that constant, it will now see
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.1.3 | 2026-08-11 | Fix missing executable bit on 14 scripts |
 | 1.1.2 | 2026-08-09 | Publishing hygiene, single-source version, changelog-driven release notes |
 | 1.1.1 | 2026-07-26 | Release and last-commit badges |
 | 1.1.0 | 2026-01-21 | CI/CD pipeline with GitHub Actions (ShellCheck, automated releases) |
 | 1.0.1 | 2026-01-20 | Documentation patch (CODE_OF_CONDUCT.md contact update) |
 | 1.0.0 | 2026-01-20 | Initial release with 14 security components |
 
-[Unreleased]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/fidpa/ubuntu-server-security/compare/v1.0.1...v1.1.2
 [1.1.1]: https://github.com/fidpa/ubuntu-server-security/commit/e13045f
 [1.1.0]: https://github.com/fidpa/ubuntu-server-security/commit/d509c22
