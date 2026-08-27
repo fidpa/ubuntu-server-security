@@ -19,18 +19,41 @@ jobs:
           fetch-depth: 0
 
       - name: Extract changelog section
+        id: changelog
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          sed -n "/^## \[${VERSION}\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d' > release-notes.md
-          if [ ! -s release-notes.md ] || grep -q '^## \[' release-notes.md; then
-            echo "No usable CHANGELOG section for ${VERSION}" >&2
-            exit 1
+          HEADING="## [${VERSION}]"
+
+          # Stop at the next level-2 heading, not just the next '## [': the oldest
+          # section is followed by '## Version History' and the link definitions,
+          # which would otherwise be appended to its body.
+          awk -v head="$HEADING" '
+            index($0, head) == 1 { p=1; next }
+            /^## / { if (p) exit }
+            p { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' > release-notes.md
+          test -s release-notes.md || { echo "No usable CHANGELOG section for ${VERSION}" >&2; exit 1; }
+          grep -q '^## ' release-notes.md && { echo "Extraction overran into the next section" >&2; exit 1; }
+
+          HEADLINE=$(awk -v head="$HEADING" '
+            index($0, head) == 1 {
+              if (match($0, /- [0-9]{4}-[0-9]{2}-[0-9]{2}: /)) {
+                print substr($0, RSTART + RLENGTH); exit
+              }
+            }
+          ' CHANGELOG.md)
+          if [ -n "$HEADLINE" ]; then
+            echo "title=v${VERSION}: ${HEADLINE}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No headline in the '${HEADING}' heading; falling back to the bare tag name"
+            echo "title=v${VERSION}" >> "$GITHUB_OUTPUT"
           fi
           wc -c release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ steps.changelog.outputs.title }}
           body_path: release-notes.md
           draft: false
           prerelease: ${{ contains(github.ref, '-') }}
