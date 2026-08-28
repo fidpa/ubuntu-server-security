@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ansible playbook support
 - Docker security hardening module
 
+## [1.1.5] - 2026-08-28: GitHub identifies the project as MIT-licensed
+
+### Changed
+
+- **The repository page shows the MIT licence, and licence-filtered searches
+  find the project.** `LICENSE` carried the repository URL on its own line
+  under the copyright notice. GitHub reads a licence text with an extra line as
+  modified and reports `NOASSERTION`, which leaves the licence field on the
+  repository page empty. The line is gone; the MIT text and the copyright
+  notice are byte-for-byte unchanged, and the URL is still in `README.md`.
+
 ## [1.1.4] - 2026-08-28: Release notes match the tags they describe, and the remaining scripts are executable
 
 Editorial pass over every section of this file, plus two changes to the repository
@@ -267,7 +278,8 @@ Until then each component installs from its own directory.
 | 1.0.1 | 2026-01-20 | Documentation patch (CODE_OF_CONDUCT.md contact update) |
 | 1.0.0 | 2026-01-20 | Initial release with 14 security components |
 
-[Unreleased]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/fidpa/ubuntu-server-security/compare/v1.0.1...v1.1.2
