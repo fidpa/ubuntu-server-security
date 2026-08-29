@@ -12,6 +12,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ansible playbook support
 - Docker security hardening module
 
+## [1.2.0] - 2026-08-30: install.sh runs the installers it could not find, and the README says what is not there
+
+`install.sh` derived each installer's file name from the component name. Three
+components ship a script the derivation never produced, a fourth was called
+without the argument it requires, and the exit status of every installer was
+discarded, so a run that did nothing still ended in `[SUCCESS]`. All four are
+fixed, and the README was measured against the tree in the same pass.
+
+### Fixed
+
+- **`install.sh` finds the installers of `boot-security`, `kernel-hardening`
+  and `lynis` again.** The script derived the file name from the component
+  name (`setup-${component//-/_}.sh`), but the scripts are named after what
+  they configure: `setup-grub-password.sh`, `setup-kernel-hardening.sh` with
+  hyphens, `install-lynis.sh`. No name matched, and the three components fell
+  through to the manual path. A lookup table now maps component to installer,
+  so a renamed script fails loudly instead of disappearing. Automated
+  components go from four to seven.
+- **`install.sh auditd` deploys rules instead of printing its usage.**
+  `deploy-auditd.sh` requires a mode (`base`, `aggressive`, `docker`) and
+  exited 1 without one. The table carries the argument, and `base` is the
+  documented recommendation.
+- **A failing installer is reported as a failure.** The exit status of the
+  component script was discarded: every run ended in `[SUCCESS] Installation
+  complete!`, including the `auditd` run that had just refused to do anything.
+  `install_component` now propagates the status and `main` aborts on it.
+- **`--dry-run` uses the installer's own dry run where one exists.** Both
+  `deploy-fail2ban.sh` and `install-lynis.sh` implement `--dry-run` and list
+  the files they would write; `install.sh` printed "Would execute" and never
+  called them. It now passes the flag through when running as root, and says
+  so where it cannot, since both scripts check for root before doing anything.
+- **`--list` marks each component `script` or `manual`,** derived from the same
+  table the installation uses, so the list cannot drift from the behaviour.
+- **`check_prerequisites` no longer prints `/etc/os-release: line 4: VERSION:
+  readonly variable`.** It sourced `/etc/os-release`, whose `VERSION` collides
+  with the script's own readonly `VERSION`; it now reads `ID` and
+  `PRETTY_NAME` out of the file without sourcing it.
+
+### Changed
+
+- **The README states what the repository does and what it does not.** Every
+  claim was measured against the tree. Corrected: `apparmor/` ships one profile
+  (PostgreSQL 16); Docker keeps its own `docker-default`, which this repository
+  does not provide. `install.sh` automates seven of the fourteen components and
+  points the other seven at their `docs/SETUP.md`; that is now stated instead
+  of a Quick Start that implied full automation. The SSH tally reads 15 of 18
+  applicable CIS 5.2.x controls with the benchmark version, per
+  `ssh-hardening/docs/CIS_CONTROLS.md`, in place of "15+". The AIDE figure
+  carries its measurement (3,799 to 12 changes per day). The drop-in example
+  names `99-custom.conf.example`, the file that exists.
+- **Removed: the unsourced numbers.** The "CIS Benchmark 100%" badge, "40+
+  controls" and "running on multiple servers with 100% CIS compliance" were
+  claims about servers outside this repository and could not be checked from
+  it. Compatibility now separates tested (Ubuntu 22.04, 24.04) from untested
+  (Debian, Raspberry Pi OS), and a Known Limitations section names the lockout
+  risk, the missing idempotency and the limits of a CIS mapping.
+- **Fixed: two dead links under "See Also".** `ubuntu-server-security-ansible`
+  does not exist, and the monitoring templates live at
+  `fidpa/linux-monitoring-templates`.
+
+### Upgrade notes
+
+`sudo ./install.sh auditd` now deploys the CIS Level 1 audit rules
+(`deploy-auditd.sh base`), where it previously printed the usage of that script
+and changed nothing. A host that ran the command before and assumed it was a
+no-op will gain `/etc/audit/rules.d/` entries and a restarted `auditd` on the
+next run. The rules log, they do not deny; `deploy-auditd.sh` backs up the
+existing rules before writing, and `./install.sh --dry-run auditd` names the
+command it would run. To keep the old behaviour, do not call the component
+through `install.sh`.
+
 ## [1.1.5] - 2026-08-28: GitHub identifies the project as MIT-licensed
 
 ### Changed
@@ -270,6 +341,8 @@ Until then each component installs from its own directory.
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.2.0 | 2026-08-30 | install.sh finds every installer it lists, and the README is measured against the tree |
+| 1.1.5 | 2026-08-28 | GitHub reads the licence as MIT again |
 | 1.1.4 | 2026-08-28 | Editorial pass over every section, remaining scripts made executable, release titles carry a headline |
 | 1.1.3 | 2026-08-11 | Fix missing executable bit on 14 scripts |
 | 1.1.2 | 2026-08-09 | Publishing hygiene, single-source version, changelog-driven release notes |
@@ -278,7 +351,8 @@ Until then each component installs from its own directory.
 | 1.0.1 | 2026-01-20 | Documentation patch (CODE_OF_CONDUCT.md contact update) |
 | 1.0.0 | 2026-01-20 | Initial release with 14 security components |
 
-[Unreleased]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/fidpa/ubuntu-server-security/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.5...v1.2.0
 [1.1.5]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/fidpa/ubuntu-server-security/compare/v1.1.2...v1.1.3

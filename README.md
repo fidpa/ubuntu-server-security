@@ -1,94 +1,133 @@
 # Ubuntu Server Security
 
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
-![Release](https://img.shields.io/github/v/release/fidpa/ubuntu-server-security)
-![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-orange?logo=ubuntu)
-![CIS Benchmark](https://img.shields.io/badge/CIS%20Benchmark-100%25-blue)
-![CI](https://github.com/fidpa/ubuntu-server-security/actions/workflows/lint.yml/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/fidpa/ubuntu-server-security)](https://github.com/fidpa/ubuntu-server-security/releases)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-orange?logo=ubuntu)](https://ubuntu.com/server)
+[![CI](https://github.com/fidpa/ubuntu-server-security/actions/workflows/lint.yml/badge.svg)](https://github.com/fidpa/ubuntu-server-security/actions/workflows/lint.yml)
 ![Last Commit](https://img.shields.io/github/last-commit/fidpa/ubuntu-server-security)
 
-Production-ready security configurations for Ubuntu servers.
+Security configuration templates for Ubuntu servers, in 14 components.
 
-**The Problem**: Security tools are powerful but complex to configure. Default settings generate noise, integrations are missing, and credentials are stored in plaintext. After weeks of hardening production servers to 100% CIS Benchmark compliance, I've extracted 14 battle-tested security components.
+Hardening a server means configuring a dozen tools that do not know about each
+other. AIDE reports thousands of changes a day until its excludes match the
+machine, fail2ban and nftables both want to own the firewall table, and every
+script that needs a password ends up with it in plaintext. The configurations
+here are the ones that came out of that work on production servers: drop-in
+files, deploy scripts and per-component documentation, one directory per tool.
 
 ## Components
 
 | Component | Description |
 |-----------|-------------|
-| **[boot-security/](boot-security/)** | GRUB + UEFI password protection (defense-in-depth) |
-| **[kernel-hardening/](kernel-hardening/)** | Kernel security via sysctl parameters + /tmp hardening |
-| **[usb-defense/](usb-defense/)** | 3-layer USB defense system (kernel blacklist + real-time detection + auditd) |
-| **[ssh-hardening/](ssh-hardening/)** | SSH hardening with 15+ CIS Benchmark controls |
-| **[ufw/](ufw/)** | UFW Firewall baseline (CIS-compliant, Docker-aware) |
-| **[nftables/](nftables/)** | Advanced firewall (NAT, Docker, WireGuard VPN, rate-limiting) |
-| **[aide/](aide/)** | Intrusion Detection with 99.7% false-positive reduction |
-| **[rkhunter/](rkhunter/)** | Rootkit detection with automated scanning |
-| **[auditd/](auditd/)** | Kernel-level audit logging (CIS 4.1.x, SIEM-ready) |
-| **[apparmor/](apparmor/)** | Mandatory Access Control profiles (PostgreSQL, Docker) |
-| **[vaultwarden/](vaultwarden/)** | Credential management via Bitwarden CLI (no plaintext secrets) |
-| **[fail2ban/](fail2ban/)** | Brute-force protection (GeoIP filtering, Telegram alerts) |
-| **[security-monitoring/](security-monitoring/)** | Unified security event monitoring with smart deduplication |
-| **[lynis/](lynis/)** | Security auditing & hardening recommendations (CIS compliance) |
+| **[boot-security/](boot-security/)** | GRUB and UEFI password protection |
+| **[kernel-hardening/](kernel-hardening/)** | Kernel parameters via sysctl, plus /tmp isolation |
+| **[usb-defense/](usb-defense/)** | Kernel blacklist, udev watcher, auditd bypass monitoring |
+| **[ssh-hardening/](ssh-hardening/)** | sshd config template with documented CIS 5.2.x mapping |
+| **[ufw/](ufw/)** | UFW baseline with Docker-aware rules |
+| **[nftables/](nftables/)** | NAT, Docker chain preservation, WireGuard, rate limiting |
+| **[aide/](aide/)** | File integrity monitoring with production-tuned excludes |
+| **[rkhunter/](rkhunter/)** | Rootkit detection with a documented false-positive baseline |
+| **[auditd/](auditd/)** | Kernel-level audit rules, mapped to CIS 4.1.x |
+| **[apparmor/](apparmor/)** | PostgreSQL 16 profile and violation checker |
+| **[vaultwarden/](vaultwarden/)** | Bash library that reads credentials from Bitwarden CLI |
+| **[fail2ban/](fail2ban/)** | Jails for SSH, nginx, Apache, Postfix, Dovecot, with GeoIP and Telegram |
+| **[security-monitoring/](security-monitoring/)** | Log aggregation with deduplication and Telegram alerts |
+| **[lynis/](lynis/)** | Audit profile and Hardening Index export |
 
 ## Features
 
-- ✅ **Defense-in-Depth** - 14 complementary security layers (boot → kernel → hardware → network → detection → logging → audit → monitoring)
-- ✅ **CIS Benchmark Compliance** - 40+ controls across all components
-- ✅ **Drop-in Configuration Pattern** - Modular configs for all components
-- ✅ **Docker-Compatible** - All hardening tested with containerized workloads
-- ✅ **Prometheus Integration** - Metrics exporters for monitoring
-- ✅ **systemd Automation** - Daily checks with configurable schedules
-- ✅ **Production-Proven** - Running on multiple Ubuntu servers with 100% CIS compliance
+- **Drop-in configuration everywhere**: AIDE ships 7 exclude files, nftables 6
+  rule templates, UFW 4 service rule sets. Nothing replaces a distribution file
+  wholesale.
+- **AIDE noise reduction, measured**: 3,799 changes per day down to 12 on the
+  reference server, a factor of 316. How the excludes get there is in
+  [docs/FALSE_POSITIVE_REDUCTION.md](docs/FALSE_POSITIVE_REDUCTION.md).
+- **SSH: 15 of 18 applicable CIS 5.2.x controls fully implemented**, three
+  relaxed by named override patterns, two not applicable. The tally, measured
+  against CIS Ubuntu Linux 24.04 LTS Benchmark v1.0.0, is in
+  [ssh-hardening/docs/CIS_CONTROLS.md](ssh-hardening/docs/CIS_CONTROLS.md).
+- **CIS mapping per component**: each config states the control family it
+  addresses, see [the table below](#cis-benchmark-mapping).
+- **Prometheus text-format exporters** for aide, auditd, fail2ban and lynis,
+  written for node_exporter's textfile collector.
+- **systemd timer templates** for the three jobs that need a schedule: AIDE
+  database update, USB activity check, security log monitor.
+- **Docker-aware firewalling**: the nftables templates flush single tables
+  rather than the ruleset, so the `DOCKER` and `DOCKER-USER` chains created at
+  runtime survive a reload; the UFW rules use `DOCKER-USER` for the same reason.
+- **Every script passes ShellCheck** at `--severity=error` and `bash -n` in CI
+  on each push.
+
+## Known Limitations
+
+> **IMPORTANT**: This is a collection of configuration templates, not a
+> turnkey hardening product.
+>
+> - `install.sh` automates 7 of the 14 components (boot-security,
+>   kernel-hardening, usb-defense, nftables, auditd, fail2ban, lynis). For the
+>   other seven it prints the path to that component's `docs/SETUP.md` and
+>   stops; `./install.sh --list` marks each component `script` or `manual`.
+> - `--dry-run` names the installer it would run. Two components dry-run
+>   themselves and report what they would touch, fail2ban and lynis; both need
+>   `sudo` for it, because the dry run reads the configuration it would
+>   replace.
+> - The scripts are not idempotent installers and carry no rollback. Templates
+>   are meant to be read and adapted before they are copied.
+> - CI checks shell syntax. It does not run the configurations against a live
+>   system; that verification is manual, with `lynis audit system` as the
+>   closest thing to an automated check.
+> - The CIS tables document which controls a config addresses. That is a
+>   mapping, not an audit, and no certification follows from it.
+> - Boot and SSH hardening can lock you out. Both need a second, already open
+>   session or console access while you test.
 
 ## Quick Start
 
-Each component has its own README with detailed setup instructions. Here's a quick overview:
-
 ```bash
-# Clone the repository
 git clone https://github.com/fidpa/ubuntu-server-security.git
 cd ubuntu-server-security
 
-# Choose components based on your needs:
+# What is available, and which components have an installer
+./install.sh --list
 
-# 1. Boot Security (prevents unauthorized boot modifications)
-sudo ./boot-security/scripts/setup-grub-password.sh
+# Preview a component without touching the system
+./install.sh --dry-run kernel-hardening
 
-# 2. Kernel Hardening (sysctl + /tmp hardening)
-sudo ./kernel-hardening/scripts/setup-kernel-hardening.sh
+# fail2ban and lynis dry-run themselves, in detail, as root
+sudo ./install.sh --dry-run fail2ban
 
-# 3. USB Defense (3-layer protection against USB attacks)
-sudo ./usb-defense/scripts/deploy-usb-defense.sh
+# Install one of the seven automated components
+sudo ./install.sh fail2ban
+```
 
-# 4. SSH Hardening (key-only auth, modern crypto)
+The other seven are copy-and-adapt. Read the component's `README.md` first;
+the commands below are the shape of it, not a substitute:
+
+```bash
+# SSH: validate before restarting, and keep a second session open
 sudo cp ssh-hardening/sshd_config.template /etc/ssh/sshd_config
 ./ssh-hardening/scripts/validate-sshd-config.sh
 sudo systemctl restart sshd
 
-# 5. UFW Firewall (simple servers)
+# UFW baseline
 sudo apt install ufw
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw limit 22/tcp
 sudo ufw enable
 
-# 6. nftables Firewall (gateways, advanced setups)
-sudo cp nftables/drop-ins/20-server.nft.template /etc/nftables.conf
-sudo nftables/scripts/validate-nftables.sh /etc/nftables.conf
-sudo nftables/scripts/deploy-nftables.sh /etc/nftables.conf
-
-# 7. AIDE (intrusion detection)
+# AIDE with the tuned excludes
 sudo apt install aide aide-common
 sudo cp aide/aide.conf.template /etc/aide/aide.conf
 sudo cp aide/drop-ins/*.conf /etc/aide/aide.conf.d/
 sudo aideinit
 
-# 8. rkhunter (rootkit detection)
+# rkhunter
 sudo apt install rkhunter
 sudo rkhunter --propupd
 ```
 
-**Full guides**: See each component's `README.md` and `docs/SETUP.md`.
+Full guides: each component's `README.md` and [docs/SETUP.md](docs/SETUP.md).
 
 ## Component Overview
 
@@ -98,27 +137,31 @@ sudo rkhunter --propupd
 |-------|-----------|---------|
 | **Boot** | boot-security | Prevent unauthorized boot modifications |
 | **Kernel** | kernel-hardening | Harden kernel parameters, /tmp isolation |
-| **Hardware** | usb-defense | Block USB-based attacks (3-layer defense) |
+| **Hardware** | usb-defense | Block USB-based attacks |
 | **Network** | ssh-hardening | Secure remote access |
 | **Firewall** | ufw / nftables | Control network traffic |
 | **Detection** | aide, rkhunter, fail2ban | Detect intrusions and rootkits |
 | **Logging** | auditd | Kernel-level event logging |
 | **Access Control** | apparmor | Mandatory Access Control |
-| **Credentials** | vaultwarden | Eliminate plaintext secrets |
-| **Monitoring** | security-monitoring | Unified security event monitoring |
-| **Audit** | lynis | Comprehensive security auditing |
+| **Credentials** | vaultwarden | Keep secrets out of scripts and .env files |
+| **Monitoring** | security-monitoring | Aggregate events from the layers above |
+| **Audit** | lynis | Score the result and list what is still open |
+
+The layers are meant to be combined; each one also works alone.
 
 ### Firewall Selection Guide
 
 | Use Case | Component | Why |
 |----------|-----------|-----|
-| Simple server (web, database, NAS) | **UFW** | Easy syntax, CIS-compliant |
+| Simple server (web, database, NAS) | **UFW** | Easy syntax, CIS 3.5.1.x mapping |
 | Gateway / Router | **nftables** | NAT, routing, Multi-WAN |
 | WireGuard VPN server | **nftables** | Native VPN integration |
 | Docker host (simple) | **UFW** | With Docker-aware patterns |
 | Docker host (advanced) | **nftables** | Chain preservation, custom rules |
 
-### Detection & Monitoring Components
+Running both at once means two tools writing the same netfilter tables. Pick one.
+
+### Detection and Monitoring
 
 | Component | Method | Best For |
 |-----------|--------|----------|
@@ -126,104 +169,108 @@ sudo rkhunter --propupd
 | **rkhunter** | Signature-based | Detecting known rootkits |
 | **auditd** | Event-based | Real-time "who did what when" |
 | **fail2ban** | Pattern-based | Blocking brute-force attacks |
-| **security-monitoring** | Aggregation-based | Unified event monitoring with smart deduplication |
-| **Lynis** | Audit-based | Comprehensive security posture assessment |
-
-**Recommendation**: Use all six for defense-in-depth.
+| **security-monitoring** | Aggregation-based | One alert stream instead of six |
+| **Lynis** | Audit-based | Periodic posture assessment |
 
 ## Key Concepts
 
 ### Drop-in Configuration Pattern
 
-All components use modular drop-in configurations instead of monolithic files:
+Components ship modular drop-in files instead of one monolithic config:
 
 ```
-# AIDE drop-ins
-/etc/aide/aide.conf.d/
-├── 10-docker-excludes.conf
-├── 20-postgresql-excludes.conf
-└── 99-custom.conf
-
-# nftables drop-ins
-nftables/drop-ins/
-├── 10-gateway.nft.template
-├── 20-server.nft.template
-└── 40-docker.nft.template
-
-# UFW drop-ins
-ufw/drop-ins/
-├── 10-webserver.rules
-├── 20-database.rules
-└── 30-monitoring.rules
+aide/drop-ins/                       nftables/drop-ins/
+├── 10-docker-excludes.conf          ├── 10-gateway.nft.template
+├── 15-monitoring-excludes.conf      ├── 20-server.nft.template
+├── 20-postgresql-excludes.conf      ├── 40-docker.nft.template
+├── 40-systemd-excludes.conf         ├── 50-vpn-wireguard.nft.template
+└── 99-custom.conf.example           └── 60-rate-limiting.nft.template
 ```
 
-**Benefits**: Easier maintenance, service-specific configs, no merge conflicts.
+A package update replaces the base file and leaves the drop-ins alone, and a
+service that goes away takes exactly one file with it. `99-custom.conf.example`
+is the copy-and-rename slot for host-specific rules.
 
-### CIS Benchmark Alignment
+### CIS Benchmark Mapping
 
 | Component | CIS Controls |
 |-----------|--------------|
 | boot-security | 1.4.x (Boot settings) |
 | kernel-hardening | 1.5.x, 3.2.x (Kernel params) |
-| usb-defense | Physical security (not in CIS, but defense-in-depth) |
+| usb-defense | Not covered by CIS (physical access) |
 | ssh-hardening | 5.2.x (SSH configuration) |
 | ufw | 3.5.1.x (UFW firewall) |
 | nftables | 3.5.3.x (nftables firewall) |
 | aide | 1.3.x (File integrity) |
 | auditd | 4.1.x (System accounting) |
 | apparmor | 1.6.x (MAC) |
-| lynis | Various (audit all controls) |
+| lynis | Audits across all families |
 
 ## Requirements
 
 **Minimum**:
-- Ubuntu 22.04 LTS or 24.04 LTS (or compatible distro)
-- systemd (for timer automation)
+- Ubuntu 22.04 LTS or 24.04 LTS
+- systemd (for the timer templates)
 - Root/sudo access
 
 **Component-specific**:
-- nftables 1.0+ (for advanced firewall features)
-- AIDE v0.18.6+ (for modern hash algorithms)
-- UFW (included in Ubuntu/Debian by default)
+- nftables 1.0+ (for the advanced firewall templates)
+- AIDE 0.18.6+ (for `num_workers` and the modern hash algorithms)
+- UFW (present on Ubuntu and Debian by default)
+- Bitwarden CLI (`bw`) for the vaultwarden library
 
 **Optional**:
-- Prometheus + node_exporter (for metrics)
-- Vaultwarden/Bitwarden server (for credential management)
+- Prometheus and node_exporter with the textfile collector, for the four exporters
+- A Vaultwarden or Bitwarden server behind the CLI
+- A Telegram bot token, for the fail2ban and security-monitoring alerts
 
 ## Compatibility
 
-**Fully supported**:
+**Tested**:
 - Ubuntu 22.04 LTS, 24.04 LTS
-- Debian 11 (Bullseye), 12 (Bookworm)
-- Raspberry Pi OS (Debian-based)
 
-**Partial support** (no AppArmor/UFW components):
-- RHEL / Fedora / Rocky Linux (use SELinux + firewalld instead)
-- Other systemd-based distros (boot-security, kernel-hardening, ssh-hardening, nftables, aide, rkhunter work)
+**Should work, untested**:
+- Debian 11 (Bullseye) and 12 (Bookworm), Raspberry Pi OS. Same package names
+  and the same systemd, but no run of this repository has been recorded on them.
 
-## Use Cases
+**Not supported**:
+- RHEL, Fedora, Rocky Linux: SELinux instead of AppArmor, firewalld instead of
+  UFW. The distribution-neutral parts (kernel-hardening, ssh-hardening, aide,
+  rkhunter, auditd) are the transferable ones, and they still need adapting.
+- Immutable or container-only systems: several components write to /etc and
+  install systemd units.
 
-- ✅ **Enterprise Infrastructure** - Servers, container hosts, network gateways
-- ✅ **Production Servers** - CIS Benchmark compliance with 40+ controls
-- ✅ **Container Hosts** - Docker-compatible hardening (kernel, firewall, AIDE)
-- ✅ **Network Gateways** - nftables with NAT, WireGuard VPN, Multi-WAN
-- ✅ **Compliance** - Generate audit trails and change reports
+## Where This Fits
+
+**Suitable for**:
+- Single servers and small fleets that are configured by hand
+- Container hosts: the kernel, firewall and AIDE templates account for Docker
+- Network gateways: nftables with NAT, WireGuard and Multi-WAN
+- Reading material: each component documents why a setting is what it is
+
+**Not recommended for**:
+- Fleet rollout: there is no Ansible or Puppet integration here
+- Hosts without out-of-band access, given the boot and SSH lockout risk
+- Anyone who needs a compliance certificate rather than a control mapping
+- Desktop systems: the USB and SSH defaults get in the way of normal use
 
 ## Documentation
-
-Each component has its own documentation:
 
 | Component | Key Docs |
 |-----------|----------|
 | boot-security | [GRUB_PASSWORD.md](boot-security/docs/GRUB_PASSWORD.md), [UEFI_PASSWORD.md](boot-security/docs/UEFI_PASSWORD.md) |
-| usb-defense | [THREE_LAYER_DEFENSE.md](usb-defense/docs/THREE_LAYER_DEFENSE.md), [SETUP.md](usb-defense/docs/SETUP.md) |
-| ssh-hardening | [CIS_CONTROLS.md](ssh-hardening/docs/CIS_CONTROLS.md), [SETUP.md](ssh-hardening/docs/SETUP.md) |
+| kernel-hardening | [TMP_HARDENING.md](kernel-hardening/docs/TMP_HARDENING.md), [SETUP.md](kernel-hardening/docs/SETUP.md) |
+| usb-defense | [THREE_LAYER_DEFENSE.md](usb-defense/docs/THREE_LAYER_DEFENSE.md), [ALERT_CONFIGURATION.md](usb-defense/docs/ALERT_CONFIGURATION.md) |
+| ssh-hardening | [CIS_CONTROLS.md](ssh-hardening/docs/CIS_CONTROLS.md), [OVERRIDE_PATTERNS.md](ssh-hardening/docs/OVERRIDE_PATTERNS.md) |
 | ufw | [SETUP.md](ufw/docs/SETUP.md), [DOCKER_NETWORKING.md](ufw/docs/DOCKER_NETWORKING.md) |
-| nftables | [SETUP.md](nftables/docs/SETUP.md), [WIREGUARD_INTEGRATION.md](nftables/docs/WIREGUARD_INTEGRATION.md) |
-| aide | [FALSE_POSITIVE_REDUCTION.md](aide/docs/FALSE_POSITIVE_REDUCTION.md) |
-| rkhunter | [FALSE_POSITIVES.md](rkhunter/docs/FALSE_POSITIVES.md) |
+| nftables | [NFTABLES_RULES.md](nftables/docs/NFTABLES_RULES.md), [WIREGUARD_INTEGRATION.md](nftables/docs/WIREGUARD_INTEGRATION.md) |
+| aide | [FALSE_POSITIVE_REDUCTION.md](aide/docs/FALSE_POSITIVE_REDUCTION.md), [BOOT_RESILIENCY.md](aide/docs/BOOT_RESILIENCY.md) |
+| rkhunter | [FALSE_POSITIVES.md](rkhunter/docs/FALSE_POSITIVES.md), [SETUP.md](rkhunter/docs/SETUP.md) |
 | auditd | [CIS_CONTROLS.md](auditd/docs/CIS_CONTROLS.md), [SETUP.md](auditd/docs/SETUP.md) |
-| lynis | [HARDENING_GUIDE.md](lynis/docs/HARDENING_GUIDE.md), [SETUP.md](lynis/docs/SETUP.md) |
+| apparmor | [POSTGRESQL_PROFILE.md](apparmor/docs/POSTGRESQL_PROFILE.md), [TROUBLESHOOTING.md](apparmor/docs/TROUBLESHOOTING.md) |
+| fail2ban | [GEOIP_FILTERING.md](fail2ban/docs/GEOIP_FILTERING.md), [TELEGRAM_INTEGRATION.md](fail2ban/docs/TELEGRAM_INTEGRATION.md) |
+| security-monitoring | [CONFIGURATION.md](security-monitoring/docs/CONFIGURATION.md), [SETUP.md](security-monitoring/docs/SETUP.md) |
+| lynis | [HARDENING_GUIDE.md](lynis/docs/HARDENING_GUIDE.md), [CUSTOM_PROFILES.md](lynis/docs/CUSTOM_PROFILES.md) |
 
 **Repository-level docs**:
 
@@ -232,30 +279,31 @@ Each component has its own documentation:
 | [docs/SETUP.md](docs/SETUP.md) | General installation guide |
 | [docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md) | Production lessons |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues |
+| [docs/FALSE_POSITIVE_REDUCTION.md](docs/FALSE_POSITIVE_REDUCTION.md) | How the AIDE excludes were derived |
+| [docs/IMMUTABLE_BINARY_PROTECTION.md](docs/IMMUTABLE_BINARY_PROTECTION.md) | Protecting the detection binaries themselves |
+| [docs/FAILURE_ALERTING.md](docs/FAILURE_ALERTING.md) | Alerting when a check stops running |
 | [docs/PROMETHEUS_INTEGRATION.md](docs/PROMETHEUS_INTEGRATION.md) | Metrics setup |
+| [docs/VAULTWARDEN_INTEGRATION.md](docs/VAULTWARDEN_INTEGRATION.md) | Credentials in scripts and units |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | What is planned |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [SECURITY.md](SECURITY.md) | Reporting a vulnerability |
 
 ## See Also
 
-- [ubuntu-server-security-ansible](https://github.com/fidpa/ubuntu-server-security-ansible) - Ansible automation
-- [monitoring-templates](https://github.com/fidpa/monitoring-templates) - Bash/Python monitoring templates
-- [bash-production-toolkit](https://github.com/fidpa/bash-production-toolkit) - Production-ready Bash libraries
+- [linux-monitoring-templates](https://github.com/fidpa/linux-monitoring-templates) - Prometheus and Grafana templates
+- [bash-production-toolkit](https://github.com/fidpa/bash-production-toolkit) - Bash libraries for logging, retry and security
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License, see [LICENSE](LICENSE).
 
 ## Author
 
 Marc Allgeier ([@fidpa](https://github.com/fidpa))
 
-**Why I Built This**: After spending weeks hardening production servers to 100% CIS Benchmark compliance, I wished I could find everything in one place. This repo consolidates 14 production-tested security components so you don't have to piece together scattered documentation.
-
 ## Contributing
 
-Contributions welcome! Please open an issue or pull request.
-
-**Areas where help is appreciated**:
-- Additional drop-in configs for services (MySQL, Redis, Nginx, etc.)
-- Firewall templates for specific use cases
-- Grafana dashboard examples
-- Testing on other Ubuntu/Debian versions
+Issues and pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+Drop-in configs for further services (MySQL, Redis, nginx), firewall templates
+for setups not covered here, Grafana dashboards and reports from Debian or
+Raspberry Pi OS are the gaps worth filling.
